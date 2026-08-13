@@ -28,10 +28,10 @@ const benefits = [
 
 export default function WholesalePage() {
   return (
-    <div className="mx-auto max-w-4xl px-4 py-16 md:px-8">
+    <div className="mx-auto max-w-4xl px-4 py-10 sm:py-16 md:px-8">
       <p className="text-[11px] tracking-[0.2em] uppercase">B2B</p>
-      <h1 className="mt-2 font-serif text-5xl">Partner with DANDY</h1>
-      <p className="mt-4 max-w-2xl text-lg text-ink-soft">
+      <h1 className="mt-2 font-serif text-4xl sm:text-5xl">Partner with DANDY</h1>
+      <p className="mt-4 max-w-2xl text-base text-ink-soft sm:text-lg">
         Wholesale and business opportunities for retailers, dealers, distributors and bulk buyers.
       </p>
 

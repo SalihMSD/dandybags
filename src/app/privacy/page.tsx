@@ -4,8 +4,8 @@ export const metadata: Metadata = { title: "Privacy policy" };
 
 export default function Page() {
   return (
-    <div className="mx-auto max-w-2xl px-4 py-16 md:px-8">
-      <h1 className="font-serif text-5xl">Privacy policy</h1>
+    <div className="mx-auto max-w-2xl px-4 py-10 sm:py-16 md:px-8">
+      <h1 className="font-serif text-4xl sm:text-5xl">Privacy policy</h1>
       <p className="mt-6 text-sm leading-relaxed text-ink-soft">
         We collect enquiry details you submit (name, company, phone, email, city) to respond to
         business and product requests. We do not sell this information. A fuller policy will be

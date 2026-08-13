@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import { categories } from "@/lib/categories";
 import { cartCount } from "@/lib/cart";
@@ -17,6 +18,7 @@ const links = [
 ];
 
 export function Header() {
+  const pathname = usePathname();
   const [open, setOpen] = useState(false);
   const [cats, setCats] = useState(false);
   const [count, setCount] = useState(0);
@@ -34,14 +36,29 @@ export function Header() {
     };
   }, []);
 
+  useEffect(() => {
+    setOpen(false);
+    setSearchOpen(false);
+  }, [pathname]);
+
+  useEffect(() => {
+    document.body.style.overflow = open ? "hidden" : "";
+    return () => {
+      document.body.style.overflow = "";
+    };
+  }, [open]);
+
   return (
     <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper/95 backdrop-blur-md">
-      <p className="bg-ink px-4 py-1.5 text-center text-[11px] tracking-[0.18em] text-paper uppercase">
-        Bags for every journey · Karur, Tamil Nadu
+      <p className="bg-ink px-3 py-2 text-center text-[10px] tracking-[0.22em] text-gold uppercase sm:text-[11px]">
+        <span className="sm:hidden">Bags for every journey</span>
+        <span className="hidden sm:inline">Bags for every journey · Karur, Tamil Nadu</span>
       </p>
-      <div className="mx-auto flex max-w-7xl items-center gap-4 px-4 py-3 md:px-8">
-        <Logo priority />
-        <nav className="ml-6 hidden items-center gap-6 text-[13px] tracking-[0.14em] uppercase lg:flex">
+      <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 md:px-8">
+        <div className="min-w-0 flex-1">
+          <Logo priority />
+        </div>
+        <nav className="ml-4 hidden items-center gap-6 text-[13px] tracking-[0.14em] uppercase lg:flex">
           {links.slice(0, 2).map((l) => (
             <Link key={l.href} href={l.href} className="hover:text-camel-dark">
               {l.label}
@@ -61,7 +78,7 @@ export function Header() {
                   <Link
                     key={c.slug}
                     href={`/categories/${c.slug}`}
-                    className="block px-4 py-2 text-[12px] hover:bg-cream"
+                    className="block px-4 py-2.5 text-[12px] hover:bg-cream"
                   >
                     {c.name}
                   </Link>
@@ -75,22 +92,22 @@ export function Header() {
             </Link>
           ))}
         </nav>
-        <div className="ml-auto flex items-center gap-3">
+        <div className="flex shrink-0 items-center">
           <button
             type="button"
             aria-label="Search"
-            className="p-2"
+            className="flex h-11 w-11 items-center justify-center"
             onClick={() => setSearchOpen((v) => !v)}
           >
             <SearchIcon />
           </button>
-          <Link href="/account" aria-label="Account" className="hidden p-2 sm:block">
+          <Link href="/account" aria-label="Account" className="hidden h-11 w-11 items-center justify-center sm:flex">
             <UserIcon />
           </Link>
-          <Link href="/cart" aria-label="Cart" className="relative p-2">
+          <Link href="/cart" aria-label="Cart" className="relative flex h-11 w-11 items-center justify-center">
             <BagIcon />
             {count > 0 && (
-              <span className="absolute right-0 top-0 flex h-4 min-w-4 items-center justify-center rounded-full bg-camel px-1 text-[10px] text-ink">
+              <span className="absolute right-1 top-1 flex h-4 min-w-4 items-center justify-center rounded-full bg-camel px-1 text-[10px] text-ink">
                 {count}
               </span>
             )}
@@ -100,14 +117,15 @@ export function Header() {
             target="_blank"
             rel="noreferrer"
             aria-label="WhatsApp"
-            className="hidden p-2 sm:block"
+            className="hidden h-11 w-11 items-center justify-center sm:flex"
           >
             <WhatsIcon />
           </a>
           <button
             type="button"
-            className="p-2 lg:hidden"
+            className="flex h-11 w-11 items-center justify-center lg:hidden"
             aria-label="Menu"
+            aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
           >
             <MenuIcon open={open} />
@@ -115,31 +133,36 @@ export function Header() {
         </div>
       </div>
       {searchOpen && (
-        <form action="/shop" className="border-t border-ink/10 px-4 py-3 md:px-8">
+        <form action="/shop" className="border-t border-ink/10 px-3 py-3 sm:px-4 md:px-8">
           <input
             name="q"
             value={q}
             onChange={(e) => setQ(e.target.value)}
             placeholder="Search bags"
-            className="w-full border border-ink/15 bg-paper px-4 py-2.5 text-sm outline-none focus:border-ink"
+            className="h-11 w-full border border-ink/15 bg-paper px-4 text-base outline-none focus:border-ink md:text-sm"
             autoFocus
           />
         </form>
       )}
       {open && (
-        <div className="border-t border-ink/10 bg-paper px-4 py-4 lg:hidden">
-          <div className="flex flex-col gap-3 text-sm tracking-[0.12em] uppercase">
+        <div className="max-h-[min(80vh,32rem)] overflow-y-auto border-t border-ink/10 bg-paper px-4 py-3 lg:hidden">
+          <div className="flex flex-col text-sm tracking-[0.12em] uppercase">
             {links.map((l) => (
-              <Link key={l.href} href={l.href} onClick={() => setOpen(false)}>
+              <Link
+                key={l.href}
+                href={l.href}
+                className="flex min-h-12 items-center border-b border-ink/5"
+                onClick={() => setOpen(false)}
+              >
                 {l.label}
               </Link>
             ))}
-            <p className="pt-2 text-[11px] text-ink-soft">Categories</p>
+            <p className="pt-4 pb-1 text-[11px] text-ink-soft">Categories</p>
             {categories.map((c) => (
               <Link
                 key={c.slug}
                 href={`/categories/${c.slug}`}
-                className="pl-2"
+                className="flex min-h-12 items-center border-b border-ink/5 pl-1"
                 onClick={() => setOpen(false)}
               >
                 {c.name}

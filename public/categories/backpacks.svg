@@ -1,8 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
-  <rect width="800" height="1000" fill="#EDE9E1"/>
-  <path d="M260 330c0-10 10-20 40-20h200c30 0 40 10 40 20v430H260V330z" stroke="#3A3A39" stroke-width="3"/>
-  <path d="M300 330v-40c0-40 30-70 100-70s100 30 100 70v40" stroke="#3A3A39" stroke-width="3"/>
-  <path d="M260 470h280" stroke="#3A3A39" stroke-width="2"/>
-  <path d="M320 330v430M480 330v430" stroke="#3A3A39" stroke-width="1.5"/>
-  <text x="400" y="900" text-anchor="middle" fill="#3A3A39" font-family="Georgia, serif" font-size="28" letter-spacing="4">BACKPACK</text>
+  <rect width="800" height="1000" fill="#2C2A28"/>
+  <path d="M260 330c0-10 10-20 40-20h200c30 0 40 10 40 20v430H260V330z" stroke="#C4A574" stroke-width="3"/>
+  <path d="M300 330v-40c0-40 30-70 100-70s100 30 100 70v40" stroke="#C4A574" stroke-width="3"/>
+  <text x="400" y="860" text-anchor="middle" fill="#EBE4D8" font-family="Georgia, serif" font-size="42">Backpack</text>
 </svg>

@@ -9,9 +9,9 @@ export const metadata: Metadata = {
 
 export default function AboutPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 md:px-8">
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
       <p className="text-[11px] tracking-[0.2em] uppercase">Company</p>
-      <h1 className="mt-2 font-serif text-5xl">About DANDY</h1>
+      <h1 className="mt-2 font-serif text-4xl sm:text-5xl">About DANDY</h1>
       <div className="mt-10 space-y-10 leading-relaxed text-ink-soft">
         <section>
           <h2 className="font-serif text-2xl text-ink">Who we are</h2>

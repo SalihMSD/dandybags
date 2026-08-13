@@ -1,12 +1,20 @@
+"use client";
+
+import { usePathname } from "next/navigation";
 import { generalWhatsappUrl } from "@/lib/whatsapp";
 
 export function WhatsAppButton() {
+  const pathname = usePathname();
+  const onProduct = pathname.startsWith("/shop/") && pathname !== "/shop/";
+
+  if (onProduct) return null;
+
   return (
     <a
       href={generalWhatsappUrl()}
       target="_blank"
       rel="noreferrer"
-      className="fixed right-4 bottom-4 z-40 flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg md:right-6 md:bottom-6"
+      className="fixed right-3 bottom-[max(1rem,env(safe-area-inset-bottom))] z-30 flex h-12 w-12 items-center justify-center rounded-full bg-[#25D366] text-white shadow-lg md:right-6 md:bottom-6"
       aria-label="Chat on WhatsApp"
     >
       <svg width="26" height="26" viewBox="0 0 24 24" fill="currentColor">

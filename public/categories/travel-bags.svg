@@ -1,9 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
-  <rect width="800" height="1000" fill="#E7E3DA"/>
-  <path d="M180 420c0-40 40-70 90-70h260c50 0 90 30 90 70v220H180V420z" stroke="#3A3A39" stroke-width="3"/>
-  <path d="M180 420h440" stroke="#3A3A39" stroke-width="2"/>
-  <path d="M300 350c0-40 30-70 100-70s100 30 100 70" stroke="#3A3A39" stroke-width="3"/>
-  <circle cx="230" cy="530" r="14" stroke="#3A3A39" stroke-width="2"/>
-  <circle cx="570" cy="530" r="14" stroke="#3A3A39" stroke-width="2"/>
-  <text x="400" y="900" text-anchor="middle" fill="#3A3A39" font-family="Georgia, serif" font-size="28" letter-spacing="4">TRAVEL</text>
+  <rect width="800" height="1000" fill="#8C6A45"/>
+  <path d="M180 420c0-40 40-70 90-70h260c50 0 90 30 90 70v220H180V420z" stroke="#F4EFE6" stroke-width="3"/>
+  <path d="M300 350c0-40 30-70 100-70s100 30 100 70" stroke="#F4EFE6" stroke-width="3"/>
+  <text x="400" y="860" text-anchor="middle" fill="#F4EFE6" font-family="Georgia, serif" font-size="42">Travel</text>
 </svg>

@@ -6,8 +6,8 @@ import { Logo } from "./Logo";
 
 export function Footer() {
   return (
-    <footer className="mt-20 border-t border-ink/10 bg-cream">
-      <div className="mx-auto grid max-w-7xl gap-10 px-4 py-14 md:grid-cols-2 md:px-8 lg:grid-cols-6">
+    <footer className="mt-0 border-t border-ink/10 bg-cream pb-16 md:pb-0">
+      <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:gap-10 sm:py-14 md:grid-cols-2 md:px-8 lg:grid-cols-6">
         <div className="lg:col-span-2">
           <Logo />
           <p className="mt-4 max-w-sm text-sm leading-relaxed text-ink-soft">

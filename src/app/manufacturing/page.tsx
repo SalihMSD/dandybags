@@ -17,8 +17,8 @@ const steps = [
 
 export default function ManufacturingPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 md:px-8">
-      <h1 className="font-serif text-5xl">Manufacturing</h1>
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
+      <h1 className="font-serif text-4xl sm:text-5xl">Manufacturing</h1>
       <p className="mt-4 text-ink-soft">
         Factory and process photographs will replace these notes when available. We will not use
         stock factory images.

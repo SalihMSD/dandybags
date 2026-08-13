@@ -1,6 +1,6 @@
 import type { NextConfig } from "next";
 
-const isGitHubPages = process.env.GITHUB_PAGES === "true";
+const isGitHubPages = process.env.CI === "true" && process.env.GITHUB_PAGES === "true";
 const basePath = isGitHubPages ? "/dandybags" : "";
 
 const nextConfig: NextConfig = {

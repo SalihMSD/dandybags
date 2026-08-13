@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Outfit } from "next/font/google";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
@@ -9,6 +9,7 @@ import "./globals.css";
 const serif = Cormorant_Garamond({
   subsets: ["latin"],
   weight: ["400", "500", "600", "700"],
+  style: ["normal", "italic"],
   variable: "--font-cormorant",
 });
 
@@ -17,6 +18,13 @@ const sans = Outfit({
   weight: ["300", "400", "500", "600"],
   variable: "--font-outfit",
 });
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 5,
+  viewportFit: "cover",
+};
 
 export const metadata: Metadata = {
   metadataBase: new URL("https://salihmsd.github.io/dandybags"),
@@ -55,7 +63,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${serif.variable} ${sans.variable} font-sans antialiased`}>
         <Header />
-        <main>{children}</main>
+        <main className="min-w-0">{children}</main>
         <Footer />
         <WhatsAppButton />
       </body>

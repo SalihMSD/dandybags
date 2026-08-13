@@ -27,8 +27,8 @@ const faqs = [
 
 export default function FaqPage() {
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 md:px-8">
-      <h1 className="font-serif text-5xl">FAQ</h1>
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
+      <h1 className="font-serif text-4xl sm:text-5xl">FAQ</h1>
       <div className="mt-10 space-y-8">
         {faqs.map((f) => (
           <section key={f.q}>

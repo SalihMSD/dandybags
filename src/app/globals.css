@@ -1,27 +1,94 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cream: #e7e3da;
-  --color-cream-dark: #ddd8cd;
-  --color-paper: #f6f3ec;
-  --color-ink: #3a3a39;
-  --color-ink-soft: #5c5b58;
-  --color-camel: #c4a574;
-  --color-camel-dark: #a88858;
+  --color-cream: #ebe4d8;
+  --color-cream-dark: #ddd4c5;
+  --color-paper: #f4efe6;
+  --color-ink: #2c2a28;
+  --color-ink-soft: #6a6560;
+  --color-camel: #b8956a;
+  --color-camel-dark: #9a7a52;
+  --color-gold: #c4a574;
   --font-serif: var(--font-cormorant), "Times New Roman", serif;
   --font-sans: var(--font-outfit), system-ui, sans-serif;
 }
 
 html {
   scroll-behavior: smooth;
+  -webkit-text-size-adjust: 100%;
 }
 
 body {
   background: var(--color-paper);
   color: var(--color-ink);
+  overflow-x: hidden;
+  padding-bottom: env(safe-area-inset-bottom);
+}
+
+body::before {
+  content: "";
+  pointer-events: none;
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  opacity: 0.035;
+  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+img,
+svg,
+video {
+  max-width: 100%;
+}
+
+input,
+select,
+textarea,
+button {
+  font-size: 16px;
+}
+
+@media (min-width: 768px) {
+  input,
+  select,
+  textarea,
+  button {
+    font-size: inherit;
+  }
 }
 
 ::selection {
   background: #c4a574;
-  color: #3a3a39;
+  color: #2c2a28;
+}
+
+.marquee {
+  display: flex;
+  overflow: hidden;
+  user-select: none;
+  border-block: 1px solid rgb(44 42 40 / 0.12);
+}
+
+.marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 3rem;
+  padding: 0.85rem 1.5rem;
+  animation: marquee 32s linear infinite;
+  white-space: nowrap;
+}
+
+@keyframes marquee {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(-50%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .marquee-track {
+    animation: none;
+  }
 }

@@ -13,10 +13,10 @@ export const metadata: Metadata = {
 
 export default function CataloguePage() {
   return (
-    <div className="mx-auto max-w-5xl px-4 py-16 md:px-8">
+    <div className="mx-auto max-w-5xl px-4 py-10 sm:py-16 md:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="font-serif text-5xl">Catalogue</h1>
+          <h1 className="font-serif text-4xl sm:text-5xl">Catalogue</h1>
           <p className="mt-3 max-w-xl text-sm text-ink-soft">
             Suitable for dealers, distributors and organized retail discussions. Wholesale prices
             are not printed here.

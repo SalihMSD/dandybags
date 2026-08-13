@@ -1,8 +1,7 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
-  <rect width="800" height="1000" fill="#E7E3DA"/>
-  <path d="M230 360h340v380H230z" stroke="#3A3A39" stroke-width="3"/>
-  <path d="M300 360v-70c0-55 40-95 100-95s100 40 100 95v70" stroke="#3A3A39" stroke-width="3"/>
-  <rect x="270" y="430" width="260" height="90" stroke="#3A3A39" stroke-width="2"/>
-  <path d="M230 620h340" stroke="#3A3A39" stroke-width="2"/>
-  <text x="400" y="900" text-anchor="middle" fill="#3A3A39" font-family="Georgia, serif" font-size="28" letter-spacing="4">COLLEGE</text>
+  <rect width="800" height="1000" fill="#3F4A3C"/>
+  <path d="M230 360h340v380H230z" stroke="#EBE4D8" stroke-width="3"/>
+  <path d="M300 360v-70c0-55 40-95 100-95s100 40 100 95v70" stroke="#EBE4D8" stroke-width="3"/>
+  <rect x="270" y="430" width="260" height="90" stroke="#EBE4D8" stroke-width="2"/>
+  <text x="400" y="860" text-anchor="middle" fill="#EBE4D8" font-family="Georgia, serif" font-size="42">College</text>
 </svg>

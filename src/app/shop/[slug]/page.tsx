@@ -46,13 +46,13 @@ export default async function ProductPage({ params }: Props) {
   };
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-8">
       <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
         <ProductGallery product={raw} />
         <div>
           <p className="text-[11px] tracking-[0.2em] uppercase">{cat?.name}</p>
-          <h1 className="mt-2 font-serif text-4xl md:text-5xl">{product.name}</h1>
+          <h1 className="mt-2 font-serif text-3xl sm:text-4xl md:text-5xl">{product.name}</h1>
           <p className="mt-2 text-sm text-ink-soft">SKU {product.sku}</p>
           <div className="mt-4 flex items-baseline gap-3">
             <span className="text-xl">{formatInr(product.sellingPrice)}</span>
@@ -102,7 +102,7 @@ export default async function ProductPage({ params }: Props) {
       {related.length > 0 && (
         <section className="mt-16">
           <h2 className="font-serif text-3xl">More in this collection</h2>
-          <div className="mt-6 grid grid-cols-2 gap-4 lg:grid-cols-4">
+          <div className="mt-6 grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4">
             {related.map((p) => (
               <ProductCard key={p.sku} product={p} />
             ))}

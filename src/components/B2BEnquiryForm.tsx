@@ -47,7 +47,7 @@ export function B2BEnquiryForm() {
     );
   }
 
-  const field = "w-full border border-ink/15 bg-paper px-3 py-2.5 text-sm outline-none focus:border-ink";
+  const field = "w-full min-h-11 border border-ink/15 bg-paper px-3 py-2.5 text-base outline-none focus:border-ink md:text-sm";
 
   return (
     <form onSubmit={onSubmit} className="grid gap-4 md:grid-cols-2">
@@ -99,15 +99,15 @@ export function B2BEnquiryForm() {
         Message
         <textarea name="message" rows={4} className={`${field} mt-1`} />
       </label>
-      <div className="flex flex-wrap gap-3 md:col-span-2">
-        <button type="submit" className="bg-ink px-6 py-3 text-[11px] tracking-[0.16em] text-paper uppercase">
+      <div className="flex flex-col gap-3 md:col-span-2 sm:flex-row sm:flex-wrap">
+        <button type="submit" className="min-h-12 bg-ink px-6 py-3 text-[11px] tracking-[0.16em] text-paper uppercase">
           Submit business enquiry
         </button>
         <a
           href={wholesaleWhatsappUrl()}
           target="_blank"
           rel="noreferrer"
-          className="border border-ink px-6 py-3 text-[11px] tracking-[0.16em] uppercase"
+          className="flex min-h-12 items-center justify-center border border-ink px-6 py-3 text-[11px] tracking-[0.16em] uppercase"
         >
           Contact on WhatsApp
         </a>

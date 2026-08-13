@@ -24,11 +24,11 @@ export default async function CategoryPage({ params }: Props) {
   const list = productsByCategory(c.slug);
 
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-8">
       <p className="text-[11px] tracking-[0.2em] uppercase">Collection</p>
-      <h1 className="mt-2 font-serif text-5xl">{c.name}</h1>
+      <h1 className="mt-2 font-serif text-4xl sm:text-5xl">{c.name}</h1>
       <p className="mt-3 max-w-xl text-ink-soft">{c.description}</p>
-      <div className="mt-10 grid grid-cols-2 gap-4 lg:grid-cols-4">
+      <div className="mt-8 grid grid-cols-2 gap-2.5 sm:mt-10 sm:gap-4 lg:grid-cols-4">
         {list.map((p) => (
           <ProductCard key={p.sku} product={p} />
         ))}

@@ -1,7 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
-  <rect width="800" height="1000" fill="#E7E3DA"/>
-  <path d="M220 420h360v280c0 40-30 70-70 70H290c-40 0-70-30-70-70V420z" stroke="#3A3A39" stroke-width="3"/>
-  <path d="M300 420v-80c0-50 40-90 100-90s100 40 100 90v80" stroke="#3A3A39" stroke-width="3"/>
-  <circle cx="400" cy="500" r="7" fill="#3A3A39"/>
-  <text x="400" y="900" text-anchor="middle" fill="#3A3A39" font-family="Georgia, serif" font-size="28" letter-spacing="4">HANDBAG</text>
+  <rect width="800" height="1000" fill="#5C4033"/>
+  <path d="M220 420h360v280c0 40-30 70-70 70H290c-40 0-70-30-70-70V420z" stroke="#EBE4D8" stroke-width="3"/>
+  <path d="M300 420v-80c0-50 40-90 100-90s100 40 100 90v80" stroke="#EBE4D8" stroke-width="3"/>
+  <text x="400" y="860" text-anchor="middle" fill="#EBE4D8" font-family="Georgia, serif" font-size="42">Handbag</text>
 </svg>

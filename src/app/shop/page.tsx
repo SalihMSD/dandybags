@@ -10,9 +10,9 @@ export const metadata: Metadata = {
 
 export default function ShopPage() {
   return (
-    <div className="mx-auto max-w-7xl px-4 py-12 md:px-8">
+    <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-8">
       <p className="text-[11px] tracking-[0.2em] uppercase">Shop</p>
-      <h1 className="mt-2 font-serif text-5xl">All bags</h1>
+      <h1 className="mt-2 font-serif text-4xl sm:text-5xl">All bags</h1>
       <p className="mt-3 max-w-xl text-sm text-ink-soft">
         Retail prices will appear here once confirmed. Wholesale pricing stays private — request a
         quote from the business page.

@@ -35,13 +35,13 @@ export function Logo({ variant = "lockup", className = "", priority }: Props) {
     );
   }
   return (
-    <Link href="/" className={`inline-flex items-center gap-2 ${className}`} aria-label="DANDY home">
+    <Link href="/" className={`inline-flex min-w-0 max-w-full items-center ${className}`} aria-label="DANDY home">
       <AssetImage
         src="/logo.png"
         alt="DANDY — Bags for every journey"
         width={280}
         height={64}
-        className="h-10 w-auto object-contain md:h-12"
+        className="h-8 w-auto max-w-[min(11rem,48vw)] object-contain object-left md:h-12 md:max-w-none"
         priority={priority}
       />
     </Link>

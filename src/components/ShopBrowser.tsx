@@ -40,11 +40,11 @@ export function ShopBrowser({ products }: { products: Product[] }) {
     return rows;
   }, [products, q, cat, avail, colour, sort]);
 
-  const select = "border border-ink/15 bg-paper px-3 py-2 text-sm";
+  const select = "h-11 w-full border border-ink/15 bg-paper px-3 text-base md:text-sm";
 
   return (
     <div>
-      <div className="mb-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+      <div className="mb-8 grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
         <input
           value={q}
           onChange={(e) => setQ(e.target.value)}
@@ -77,7 +77,7 @@ export function ShopBrowser({ products }: { products: Product[] }) {
         </select>
       </div>
       <p className="mb-6 text-sm text-ink-soft">{list.length} bags</p>
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-4 lg:gap-6">
+      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4 lg:gap-6">
         {list.map((p) => (
           <ProductCard key={p.sku} product={p} />
         ))}

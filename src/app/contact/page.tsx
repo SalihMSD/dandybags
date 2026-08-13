@@ -6,9 +6,9 @@ import { generalWhatsappUrl } from "@/lib/whatsapp";
 
 export default function ContactPage() {
   return (
-    <div className="mx-auto grid max-w-5xl gap-12 px-4 py-16 md:grid-cols-2 md:px-8">
+    <div className="mx-auto grid max-w-5xl gap-10 px-4 py-10 sm:gap-12 sm:py-16 md:grid-cols-2 md:px-8">
       <div>
-        <h1 className="font-serif text-5xl">Contact</h1>
+        <h1 className="font-serif text-4xl sm:text-5xl">Contact</h1>
         <p className="mt-4 text-ink-soft">
           {site.contact.name}
           <br />

@@ -16,8 +16,8 @@ export default function CartPage() {
   }, []);
 
   return (
-    <div className="mx-auto max-w-3xl px-4 py-16 md:px-8">
-      <h1 className="font-serif text-5xl">Cart</h1>
+    <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
+      <h1 className="font-serif text-4xl sm:text-5xl">Cart</h1>
       <p className="mt-3 text-sm text-ink-soft">
         Checkout and payment will be connected in a later phase. You can still save bags here and
         enquire on WhatsApp.
