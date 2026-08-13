@@ -1,0 +1,64 @@
+import type { Metadata } from "next";
+import { Cormorant_Garamond, Outfit } from "next/font/google";
+import { Footer } from "@/components/Footer";
+import { Header } from "@/components/Header";
+import { WhatsAppButton } from "@/components/WhatsAppButton";
+import { site } from "@/lib/site";
+import "./globals.css";
+
+const serif = Cormorant_Garamond({
+  subsets: ["latin"],
+  weight: ["400", "500", "600", "700"],
+  variable: "--font-cormorant",
+});
+
+const sans = Outfit({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600"],
+  variable: "--font-outfit",
+});
+
+export const metadata: Metadata = {
+  metadataBase: new URL("https://salihmsd.github.io/dandybags"),
+  title: {
+    default: "DANDY — Bags for every journey | Bag shop Karur",
+    template: "%s | DANDY",
+  },
+  description: site.description,
+  keywords: [
+    "Dandy bags",
+    "Dandy bags Karur",
+    "Bag shop Karur",
+    "Bag manufacturer Tamil Nadu",
+    "School bags Tamil Nadu",
+    "College bags Tamil Nadu",
+    "Backpacks Tamil Nadu",
+    "Travel bags Tamil Nadu",
+    "Sling bags",
+    "Handbags",
+    "Ladies purses",
+    "Wholesale bags Tamil Nadu",
+  ],
+  openGraph: {
+    title: "DANDY — Bags for every journey",
+    description: site.description,
+    locale: "en_IN",
+    type: "website",
+  },
+  icons: {
+    icon: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/favicon.png`,
+  },
+};
+
+export default function RootLayout({ children }: { children: React.ReactNode }) {
+  return (
+    <html lang="en">
+      <body className={`${serif.variable} ${sans.variable} font-sans antialiased`}>
+        <Header />
+        <main>{children}</main>
+        <Footer />
+        <WhatsAppButton />
+      </body>
+    </html>
+  );
+}

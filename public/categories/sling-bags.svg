@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
+  <rect width="800" height="1000" fill="#EDE9E1"/>
+  <path d="M280 430h240v220c0 30-20 50-50 50H330c-30 0-50-20-50-50V430z" stroke="#3A3A39" stroke-width="3"/>
+  <path d="M280 430c20-90 80-160 120-160s100 70 120 160" stroke="#3A3A39" stroke-width="3"/>
+  <path d="M280 500h240" stroke="#3A3A39" stroke-width="2"/>
+  <text x="400" y="900" text-anchor="middle" fill="#3A3A39" font-family="Georgia, serif" font-size="28" letter-spacing="4">SLING</text>
+</svg>

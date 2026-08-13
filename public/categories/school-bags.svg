@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
+  <rect width="800" height="1000" fill="#EDE9E1"/>
+  <path d="M250 340h300v420H250z" stroke="#3A3A39" stroke-width="3"/>
+  <path d="M310 340v-50c0-50 36-90 90-90s90 40 90 90v50" stroke="#3A3A39" stroke-width="3"/>
+  <path d="M250 430h300" stroke="#3A3A39" stroke-width="2"/>
+  <circle cx="400" cy="390" r="8" fill="#3A3A39"/>
+  <text x="400" y="900" text-anchor="middle" fill="#3A3A39" font-family="Georgia, serif" font-size="28" letter-spacing="4">SCHOOL</text>
+</svg>
