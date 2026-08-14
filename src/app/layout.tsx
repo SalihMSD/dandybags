@@ -55,6 +55,7 @@ export const metadata: Metadata = {
   },
   icons: {
     icon: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/favicon.png`,
+    apple: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/apple-touch-icon.png`,
   },
 };
 

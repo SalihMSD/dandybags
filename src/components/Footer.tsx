@@ -106,16 +106,12 @@ export function Footer() {
               <a href={site.instagram} target="_blank" rel="noreferrer">
                 Instagram
               </a>
-            ) : (
-              <span className="text-ink-soft">Instagram (to be updated)</span>
-            )}
+            ) : null}
             {site.facebook ? (
               <a href={site.facebook} target="_blank" rel="noreferrer">
                 Facebook
               </a>
-            ) : (
-              <span className="text-ink-soft">Facebook (to be updated)</span>
-            )}
+            ) : null}
             <a href={generalWhatsappUrl()} target="_blank" rel="noreferrer">
               WhatsApp
             </a>

@@ -1,6 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
-import { AssetImage } from "@/components/AssetImage";
+import { Logo } from "@/components/Logo";
 import { PrintButton } from "@/components/PrintButton";
 import { categories } from "@/lib/categories";
 import { products } from "@/lib/products";
@@ -26,7 +26,9 @@ export default function CataloguePage() {
       </div>
 
       <section className="mt-12 border border-ink/10 bg-cream p-8 text-center">
-        <AssetImage src="/logo.png" alt="DANDY" width={280} height={70} className="mx-auto h-14 w-auto" />
+        <div className="flex justify-center">
+          <Logo />
+        </div>
         <p className="mt-4 text-[11px] tracking-[0.28em] uppercase">{site.tagline}</p>
       </section>
 

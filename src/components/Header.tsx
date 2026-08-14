@@ -49,16 +49,14 @@ export function Header() {
   }, [open]);
 
   return (
-    <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper/95 backdrop-blur-md">
+    <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper">
       <p className="border-b border-ink/10 bg-cream px-3 py-2 text-center text-[10px] tracking-[0.22em] text-ink-soft uppercase sm:text-[11px]">
         <span className="sm:hidden">Bags for every journey</span>
         <span className="hidden sm:inline">Bags for every journey · Karur, Tamil Nadu</span>
       </p>
-      <div className="mx-auto flex max-w-7xl items-center gap-2 px-3 py-2.5 sm:gap-4 sm:px-4 md:px-8">
-        <div className="min-w-0 flex-1">
-          <Logo priority />
-        </div>
-        <nav className="ml-4 hidden items-center gap-6 text-[13px] tracking-[0.14em] uppercase lg:flex">
+      <div className="mx-auto flex max-w-7xl items-center gap-3 px-3 py-3 sm:gap-5 sm:px-5 md:px-8 md:py-3.5">
+        <Logo priority />
+        <nav className="ml-auto hidden items-center gap-5 text-[12px] tracking-[0.16em] uppercase xl:flex 2xl:gap-6">
           {links.slice(0, 2).map((l) => (
             <Link key={l.href} href={l.href} className="hover:text-camel-dark">
               {l.label}
@@ -73,7 +71,7 @@ export function Header() {
               Categories
             </Link>
             {cats && (
-              <div className="absolute left-0 top-full w-64 border border-ink/10 bg-paper py-3 shadow-sm">
+              <div className="absolute left-0 top-full z-20 w-64 border border-ink/10 bg-paper py-3 shadow-sm">
                 {categories.map((c) => (
                   <Link
                     key={c.slug}
@@ -92,7 +90,7 @@ export function Header() {
             </Link>
           ))}
         </nav>
-        <div className="flex shrink-0 items-center">
+        <div className="ml-auto flex shrink-0 items-center xl:ml-2">
           <button
             type="button"
             aria-label="Search"
@@ -123,7 +121,7 @@ export function Header() {
           </a>
           <button
             type="button"
-            className="flex h-11 w-11 items-center justify-center lg:hidden"
+            className="flex h-11 w-11 items-center justify-center xl:hidden"
             aria-label="Menu"
             aria-expanded={open}
             onClick={() => setOpen((v) => !v)}
@@ -145,7 +143,7 @@ export function Header() {
         </form>
       )}
       {open && (
-        <div className="max-h-[min(80vh,32rem)] overflow-y-auto border-t border-ink/10 bg-paper px-4 py-3 lg:hidden">
+        <div className="max-h-[min(80vh,32rem)] overflow-y-auto border-t border-ink/10 bg-paper px-4 py-3 xl:hidden">
           <div className="flex flex-col text-sm tracking-[0.12em] uppercase">
             {links.map((l) => (
               <Link

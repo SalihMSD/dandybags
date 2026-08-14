@@ -56,11 +56,11 @@ export default function HomePage() {
           </div>
           <div className="relative mx-auto aspect-[4/5] w-full max-w-md overflow-hidden bg-cream-dark md:max-w-none">
             <AssetImage
-              src="/products/dummy/hero.jpg"
-              alt="DANDY bags — placeholder photography"
+              src="/products/dummy/hero-collection.png"
+              alt="DANDY collection — school, college, backpack, travel, sling, handbag and ladies purse"
               fill
               priority
-              className="object-cover object-center"
+              className="object-cover object-[center_40%]"
               sizes="(max-width: 768px) 90vw, 480px"
             />
           </div>
