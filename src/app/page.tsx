@@ -3,7 +3,7 @@ import { AssetImage } from "@/components/AssetImage";
 import { CategoryCard } from "@/components/CategoryCard";
 import { ProductRail } from "@/components/ProductRail";
 import { categories } from "@/lib/categories";
-import { featuredProducts, products } from "@/lib/products";
+import { featuredProducts, productsByCategory } from "@/lib/products";
 import { site } from "@/lib/site";
 
 const journeys = [
@@ -14,7 +14,9 @@ const journeys = [
 
 export default function HomePage() {
   const featured = featuredProducts();
-  const arrivals = products.slice(0, 8);
+  const arrivals = categories
+    .map((c) => productsByCategory(c.slug).find((p) => !p.featured))
+    .filter((p): p is NonNullable<typeof p> => Boolean(p));
   const marquee = [...categories, ...categories].map((c) => c.name);
 
   return (
