@@ -24,10 +24,19 @@ jobs:
           node-version: "20"
           cache: npm
       - run: npm ci
+      # GitHub Pages is static HTML only — APIs and middleware cannot be exported.
+      - name: Strip server-only routes for static export
+        run: |
+          rm -rf src/app/api
+          rm -f src/middleware.ts
       - run: npm run build
         env:
+          CI: "true"
           GITHUB_PAGES: "true"
           NEXT_PUBLIC_BASE_PATH: "/dandybags"
+          AUTH_SECRET: "github-pages-static-placeholder-secret"
+      - name: Allow _next assets on GitHub Pages
+        run: touch out/.nojekyll
       - uses: actions/upload-pages-artifact@v3
         with:
           path: out
