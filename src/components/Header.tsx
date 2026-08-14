@@ -7,6 +7,7 @@ import { categories } from "@/lib/categories";
 import { cartCount } from "@/lib/cart";
 import { generalWhatsappUrl } from "@/lib/whatsapp";
 import { Logo } from "./Logo";
+import { useAuth } from "./AuthProvider";
 
 const links = [
   { href: "/", label: "Home" },
@@ -47,6 +48,14 @@ export function Header() {
       document.body.style.overflow = "";
     };
   }, [open]);
+
+  if (
+    ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/admin/login"].includes(
+      pathname,
+    )
+  ) {
+    return null;
+  }
 
   return (
     <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper">
@@ -99,9 +108,7 @@ export function Header() {
           >
             <SearchIcon />
           </button>
-          <Link href="/account" aria-label="Account" className="hidden h-11 w-11 items-center justify-center sm:flex">
-            <UserIcon />
-          </Link>
+          <AccountMenu />
           <Link href="/cart" aria-label="Cart" className="relative flex h-11 w-11 items-center justify-center">
             <BagIcon />
             {count > 0 && (
@@ -155,6 +162,9 @@ export function Header() {
                 {l.label}
               </Link>
             ))}
+            <Link href="/account" className="flex min-h-12 items-center border-b border-ink/5" onClick={() => setOpen(false)}>
+              Account
+            </Link>
             <p className="pt-4 pb-1 text-[11px] text-ink-soft">Categories</p>
             {categories.map((c) => (
               <Link
@@ -170,6 +180,60 @@ export function Header() {
         </div>
       )}
     </header>
+  );
+}
+
+function AccountMenu() {
+  const { user, loading, logout } = useAuth();
+  const [open, setOpen] = useState(false);
+
+  if (loading) {
+    return <span className="hidden h-11 w-11 sm:block" />;
+  }
+
+  if (!user) {
+    return (
+      <Link href="/login" aria-label="Account" className="hidden h-11 w-11 items-center justify-center sm:flex">
+        <UserIcon />
+      </Link>
+    );
+  }
+
+  const first = user.fullName.split(" ")[0];
+
+  return (
+    <div className="relative hidden sm:block" onMouseEnter={() => setOpen(true)} onMouseLeave={() => setOpen(false)}>
+      <button type="button" className="flex h-11 max-w-[9rem] items-center px-2 text-[12px] tracking-[0.08em]">
+        Hi, {first}
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full z-30 w-52 border border-ink/10 bg-paper py-2 text-sm shadow-sm">
+          {user.role === "ADMIN" ? (
+            <Link href="/admin" className="block px-4 py-2 hover:bg-cream">
+              Admin
+            </Link>
+          ) : (
+            <>
+              <Link href="/account" className="block px-4 py-2 hover:bg-cream">
+                My Account
+              </Link>
+              <Link href="/account/orders" className="block px-4 py-2 hover:bg-cream">
+                My Orders
+              </Link>
+              <Link href="/account/wishlist" className="block px-4 py-2 hover:bg-cream">
+                Wishlist
+              </Link>
+              <Link href="/account/addresses" className="block px-4 py-2 hover:bg-cream">
+                Addresses
+              </Link>
+            </>
+          )}
+          <button type="button" onClick={() => void logout()} className="block w-full px-4 py-2 text-left hover:bg-cream">
+            Logout
+          </button>
+        </div>
+      )}
+    </div>
   );
 }
 

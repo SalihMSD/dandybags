@@ -11,7 +11,7 @@ const nextConfig: NextConfig = {
   },
   trailingSlash: isGitHubPages,
   images: {
-    unoptimized: true,
+    unoptimized: isGitHubPages,
     formats: ["image/avif", "image/webp"],
     dangerouslyAllowSVG: true,
     contentDispositionType: "inline",

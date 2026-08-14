@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import Link from "next/link";
+import { AssetImage } from "@/components/AssetImage";
 import { Logo } from "@/components/Logo";
 import { PrintButton } from "@/components/PrintButton";
 import { categories } from "@/lib/categories";

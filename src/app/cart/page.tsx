@@ -54,7 +54,15 @@ export default function CartPage() {
         </ul>
       )}
       {lines.length > 0 && (
-        <p className="mt-6 text-sm text-ink-soft">{cartCount()} item(s). Payment gateway to be added.</p>
+        <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Link
+            href="/checkout"
+            className="inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase"
+          >
+            Checkout
+          </Link>
+          <p className="text-sm text-ink-soft">{cartCount()} item(s). Payment is confirmed after the order is placed.</p>
+        </div>
       )}
     </div>
   );

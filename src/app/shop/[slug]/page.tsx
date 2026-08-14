@@ -5,7 +5,7 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductGallery } from "@/components/ProductGallery";
 import { getCategory } from "@/lib/categories";
 import { getProduct, products, publicProduct } from "@/lib/products";
-import { formatInr } from "@/lib/format";
+import { discountPercent, formatInr } from "@/lib/format";
 import { site } from "@/lib/site";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -31,6 +31,7 @@ export default async function ProductPage({ params }: Props) {
   if (!raw) notFound();
   const product = publicProduct(raw);
   const cat = getCategory(product.category);
+  const off = discountPercent(product.mrp, product.sellingPrice);
   const related = products
     .filter((p) => p.category === product.category && p.sku !== product.sku)
     .slice(0, 4);
@@ -54,10 +55,15 @@ export default async function ProductPage({ params }: Props) {
           <p className="text-[11px] tracking-[0.2em] uppercase">{cat?.name}</p>
           <h1 className="mt-2 font-serif text-3xl sm:text-4xl md:text-5xl">{product.name}</h1>
           <p className="mt-2 text-sm text-ink-soft">SKU {product.sku}</p>
-          <div className="mt-4 flex items-baseline gap-3">
+          <div className="mt-4 flex flex-wrap items-baseline gap-x-3 gap-y-1">
             <span className="text-xl">{formatInr(product.sellingPrice)}</span>
-            {product.mrp != null && (
-              <span className="text-ink-soft line-through">{formatInr(product.mrp)}</span>
+            {product.mrp != null && product.sellingPrice != null && product.mrp > product.sellingPrice && (
+              <>
+                <span className="text-ink-soft line-through">{formatInr(product.mrp)}</span>
+                {off != null && (
+                  <span className="text-sm font-semibold text-camel-dark">{off}% off</span>
+                )}
+              </>
             )}
           </div>
           <p className="mt-2 text-sm">

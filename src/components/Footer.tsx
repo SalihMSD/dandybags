@@ -1,10 +1,22 @@
+"use client";
+
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import { categories } from "@/lib/categories";
 import { site } from "@/lib/site";
 import { generalWhatsappUrl } from "@/lib/whatsapp";
 import { Logo } from "./Logo";
 
 export function Footer() {
+  const pathname = usePathname();
+  if (
+    ["/login", "/register", "/forgot-password", "/reset-password", "/verify-email", "/admin/login"].includes(
+      pathname,
+    )
+  ) {
+    return null;
+  }
+
   return (
     <footer className="mt-0 border-t border-ink/10 bg-cream pb-16 md:pb-0">
       <div className="mx-auto grid max-w-7xl gap-8 px-4 py-10 sm:gap-10 sm:py-14 md:grid-cols-2 md:px-8 lg:grid-cols-6">

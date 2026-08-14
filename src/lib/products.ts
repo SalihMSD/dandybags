@@ -469,8 +469,31 @@ const catalog: Array<{
   },
 ];
 
-export const products: Product[] = catalog.map((row) =>
-  item({
+/** Placeholder retail prices until confirmed. Wholesale stays private. */
+const DUMMY_SELL: Record<CategorySlug, number[]> = {
+  "school-bags": [500, 550, 600, 650, 700],
+  "college-bags": [600, 650, 700, 750, 800],
+  backpacks: [800, 850, 900, 1000, 1100],
+  "travel-bags": [1000, 1100, 1200, 1300, 1500],
+  "sling-bags": [500, 550, 600, 650, 700],
+  handbags: [700, 750, 800, 900, 1000],
+  "ladies-purses": [400, 450, 500, 550, 600],
+};
+
+function dummyPricing(category: CategorySlug, index: number) {
+  const sells = DUMMY_SELL[category];
+  const sellingPrice = sells[index % sells.length];
+  const bump = sellingPrice >= 1000 ? 300 : sellingPrice >= 700 ? 200 : 150;
+  return { sellingPrice, mrp: sellingPrice + bump };
+}
+
+const categoryCursor: Partial<Record<CategorySlug, number>> = {};
+
+export const products: Product[] = catalog.map((row) => {
+  const index = categoryCursor[row.category] ?? 0;
+  categoryCursor[row.category] = index + 1;
+  const { sellingPrice, mrp } = dummyPricing(row.category, index);
+  return item({
     sku: row.sku,
     slug: row.slug,
     name: row.name,
@@ -482,8 +505,10 @@ export const products: Product[] = catalog.map((row) =>
     featured: Boolean(row.featured),
     images: dummy(row.front, row.lifestyle),
     description: row.description,
-  }),
-);
+    sellingPrice,
+    mrp,
+  });
+});
 
 export const dealers: {
   name: string;

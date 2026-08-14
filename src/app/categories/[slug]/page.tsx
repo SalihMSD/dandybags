@@ -29,8 +29,8 @@ export default async function CategoryPage({ params }: Props) {
       <h1 className="mt-2 font-serif text-4xl sm:text-5xl">{c.name}</h1>
       <p className="mt-3 max-w-xl text-ink-soft">{c.description}</p>
       <div className="mt-8 grid grid-cols-2 items-stretch gap-2.5 sm:mt-10 sm:gap-4 lg:grid-cols-4">
-        {list.map((p) => (
-          <ProductCard key={p.sku} product={p} />
+        {list.map((p, i) => (
+          <ProductCard key={p.sku} product={p} priority={i < 4} />
         ))}
       </div>
     </div>

@@ -96,8 +96,26 @@ button {
   display: none;
 }
 
+.product-card {
+  content-visibility: auto;
+  contain-intrinsic-size: auto 420px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .marquee-track {
     animation: none;
+  }
+
+  .product-card,
+  .product-card img {
+    transition: none !important;
+  }
+
+  .product-card:hover {
+    transform: none;
+  }
+
+  .product-card:hover img {
+    transform: none;
   }
 }
