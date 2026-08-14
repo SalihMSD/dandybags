@@ -1,6 +1,6 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 1000" fill="none">
-  <rect width="800" height="1000" fill="#E8D5C4"/>
-  <path d="M260 480h280v200c0 35-25 60-60 60H320c-35 0-60-25-60-60V480z" stroke="#2C2A28" stroke-width="3"/>
-  <path d="M330 480v-50c0-35 25-60 70-60s70 25 70 60v50" stroke="#2C2A28" stroke-width="3"/>
-  <text x="400" y="860" text-anchor="middle" fill="#2C2A28" font-family="Georgia, serif" font-size="42">Purse</text>
+  <rect width="800" height="1000" fill="#F0EBE3"/>
+  <path d="M260 480h280v200c0 35-25 60-60 60H320c-35 0-60-25-60-60V480z" stroke="#3A3A39" stroke-width="3"/>
+  <path d="M330 480v-50c0-35 25-60 70-60s70 25 70 60v50" stroke="#3A3A39" stroke-width="3"/>
+  <text x="400" y="860" text-anchor="middle" fill="#3A3A39" font-family="Georgia, serif" font-size="42">Purse</text>
 </svg>

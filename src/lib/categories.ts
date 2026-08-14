@@ -22,7 +22,7 @@ export const categories: Category[] = [
     short: "Designed for everyday school journeys.",
     description:
       "School bags made for daily use — books, bottles and the route from home to class.",
-    image: "/categories/school-bags.svg",
+    image: "/products/dummy/school-classic.jpg",
   },
   {
     slug: "college-bags",
@@ -30,7 +30,7 @@ export const categories: Category[] = [
     short: "Functional styles for campus life.",
     description:
       "College bags shaped for campus days — laptop space, commute, and class to café.",
-    image: "/categories/college-bags.svg",
+    image: "/products/dummy/college-campus.jpg",
   },
   {
     slug: "backpacks",
@@ -38,7 +38,7 @@ export const categories: Category[] = [
     short: "Everyday comfort with practical design.",
     description:
       "Backpacks for everyday carry — balanced, practical, and easy to live with.",
-    image: "/categories/backpacks.svg",
+    image: "/products/dummy/everyday-backpack.jpg",
   },
   {
     slug: "travel-bags",
@@ -46,7 +46,7 @@ export const categories: Category[] = [
     short: "Made for journeys big and small.",
     description:
       "Travel bags for weekends and longer journeys — organised, durable, ready to go.",
-    image: "/categories/travel-bags.svg",
+    image: "/products/dummy/weekender.jpg",
   },
   {
     slug: "sling-bags",
@@ -54,7 +54,7 @@ export const categories: Category[] = [
     short: "Compact, convenient and effortless.",
     description:
       "Sling bags for light days — compact, hands-free, and easy to wear.",
-    image: "/categories/sling-bags.svg",
+    image: "/products/dummy/everyday-sling.jpg",
   },
   {
     slug: "handbags",
@@ -62,7 +62,7 @@ export const categories: Category[] = [
     short: "Everyday style with practical space.",
     description:
       "Handbags for work and outings — considered style with usable space.",
-    image: "/categories/handbags.svg",
+    image: "/products/dummy/everyday-handbag.jpg",
   },
   {
     slug: "ladies-purses",
@@ -70,7 +70,7 @@ export const categories: Category[] = [
     short: "Elegant essentials for every occasion.",
     description:
       "Ladies purses as everyday essentials — compact, considered, and easy to carry.",
-    image: "/categories/ladies-purses.svg",
+    image: "/products/dummy/classic-purse.jpg",
   },
 ];
 

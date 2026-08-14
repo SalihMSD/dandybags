@@ -43,9 +43,11 @@ export type Product = {
   seoDescription: string;
 };
 
-function placeholder(category: CategorySlug): ProductImages {
-  const src = `/categories/${category}.svg`;
-  return { front: src };
+function dummy(frontFile: string, lifestyleFile?: string): ProductImages {
+  return {
+    front: `/products/dummy/${frontFile}`,
+    lifestyle: `/products/dummy/${lifestyleFile ?? "hero.jpg"}`,
+  };
 }
 
 function item(
@@ -86,7 +88,7 @@ function item(
     sellingPrice: null,
     b2bPrice: null,
     stock: null,
-    images: partial.images ?? placeholder(partial.category),
+    images: partial.images ?? dummy("hero.jpg"),
     ...partial,
     seoTitle: partial.seoTitle || `${partial.name} | DANDY Bags`,
     seoDescription:
@@ -106,6 +108,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: true,
+    images: dummy("school-classic.jpg", "school-everyday.jpg"),
     description:
       "A school bag for everyday journeys. Full specifications and photography will be added after the product shoot.",
   }),
@@ -119,6 +122,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: false,
+    images: dummy("school-everyday.jpg", "school-classic.jpg"),
     description:
       "A practical school bag for daily use. Specification to be added.",
   }),
@@ -132,6 +136,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: true,
+    images: dummy("college-campus.jpg", "college-commute.jpg"),
     description:
       "A college bag for campus life. Laptop fit and full specifications to be added after measurement.",
   }),
@@ -145,6 +150,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: false,
+    images: dummy("college-commute.jpg", "college-campus.jpg"),
     description: "A college bag for daily commute. Specification to be added.",
   }),
   item({
@@ -157,6 +163,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: true,
+    images: dummy("everyday-backpack.jpg", "utility-backpack.jpg"),
     description:
       "An everyday backpack with practical design. Specification to be added.",
   }),
@@ -170,6 +177,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: false,
+    images: dummy("utility-backpack.jpg", "everyday-backpack.jpg"),
     description: "A utility backpack for daily carry. Specification to be added.",
   }),
   item({
@@ -182,6 +190,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: true,
+    images: dummy("weekender.jpg", "duffle.jpg"),
     description:
       "A travel bag for journeys big and small. Specification to be added.",
   }),
@@ -195,6 +204,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: false,
+    images: dummy("duffle.jpg", "weekender.jpg"),
     description: "A duffle-style travel bag. Specification to be added.",
   }),
   item({
@@ -207,6 +217,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: true,
+    images: dummy("everyday-sling.jpg", "compact-sling.jpg"),
     description:
       "A compact sling bag for effortless everyday carry. Specification to be added.",
   }),
@@ -220,6 +231,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: false,
+    images: dummy("compact-sling.jpg", "everyday-sling.jpg"),
     description: "A compact sling bag. Specification to be added.",
   }),
   item({
@@ -232,6 +244,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: true,
+    images: dummy("everyday-handbag.jpg", "structured-handbag.jpg"),
     description:
       "A handbag for everyday style with practical space. Specification to be added.",
   }),
@@ -245,6 +258,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: false,
+    images: dummy("structured-handbag.jpg", "everyday-handbag.jpg"),
     description: "A structured handbag. Specification to be added.",
   }),
   item({
@@ -257,6 +271,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: true,
+    images: dummy("classic-purse.jpg", "occasion-purse.jpg"),
     description:
       "A ladies purse for everyday occasions. Specification to be added.",
   }),
@@ -270,6 +285,7 @@ export const products: Product[] = [
     b2cAvailable: true,
     b2bAvailable: true,
     featured: false,
+    images: dummy("occasion-purse.jpg", "classic-purse.jpg"),
     description: "A ladies purse for occasions. Specification to be added.",
   }),
 ];

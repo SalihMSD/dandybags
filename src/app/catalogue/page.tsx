@@ -47,8 +47,8 @@ export default function CataloguePage() {
                   href={`/shop/${p.slug}`}
                   className="grid grid-cols-[80px_1fr] gap-4 p-4 hover:bg-cream sm:grid-cols-[96px_1fr_1fr]"
                 >
-                  <div className="relative aspect-square bg-cream">
-                    <AssetImage src={p.images.front} alt={p.name} fill className="object-cover" sizes="96px" />
+                  <div className="relative aspect-[4/5] w-20 overflow-hidden bg-cream sm:w-24">
+                    <AssetImage src={p.images.front} alt={p.name} fill className="object-cover object-center" sizes="96px" />
                   </div>
                   <div>
                     <p className="font-serif text-lg">{p.name}</p>

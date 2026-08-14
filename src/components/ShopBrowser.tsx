@@ -77,7 +77,7 @@ export function ShopBrowser({ products }: { products: Product[] }) {
         </select>
       </div>
       <p className="mb-6 text-sm text-ink-soft">{list.length} bags</p>
-      <div className="grid grid-cols-2 gap-2.5 sm:gap-4 lg:grid-cols-4 lg:gap-6">
+      <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-4 lg:grid-cols-4 lg:gap-6">
         {list.map((p) => (
           <ProductCard key={p.sku} product={p} />
         ))}

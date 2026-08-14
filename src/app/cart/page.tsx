@@ -33,8 +33,8 @@ export default function CartPage() {
         <ul className="mt-10 divide-y divide-ink/10 border border-ink/10">
           {lines.map((l) => (
             <li key={l.sku} className="flex items-center gap-4 p-4">
-              <div className="relative h-20 w-16 bg-cream">
-                <AssetImage src={l.image} alt={l.name} fill className="object-cover" sizes="64px" />
+              <div className="relative aspect-[4/5] w-16 shrink-0 overflow-hidden bg-cream">
+                <AssetImage src={l.image} alt={l.name} fill className="object-cover object-center" sizes="64px" />
               </div>
               <div className="flex-1">
                 <Link href={`/shop/${l.slug}`} className="font-serif text-lg">

@@ -1,13 +1,13 @@
 @import "tailwindcss";
 
 @theme {
-  --color-cream: #ebe4d8;
-  --color-cream-dark: #ddd4c5;
-  --color-paper: #f4efe6;
-  --color-ink: #2c2a28;
-  --color-ink-soft: #6a6560;
-  --color-camel: #b8956a;
-  --color-camel-dark: #9a7a52;
+  --color-cream: #e7e3da;
+  --color-cream-dark: #ddd8cd;
+  --color-paper: #f3efe7;
+  --color-ink: #3a3a39;
+  --color-ink-soft: #5c5b58;
+  --color-camel: #c4a574;
+  --color-camel-dark: #a88858;
   --color-gold: #c4a574;
   --font-serif: var(--font-cormorant), "Times New Roman", serif;
   --font-sans: var(--font-outfit), system-ui, sans-serif;
@@ -85,6 +85,15 @@ button {
   to {
     transform: translateX(-50%);
   }
+}
+
+.hide-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}
+
+.hide-scrollbar::-webkit-scrollbar {
+  display: none;
 }
 
 @media (prefers-reduced-motion: reduce) {

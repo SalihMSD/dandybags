@@ -50,7 +50,7 @@ export function Header() {
 
   return (
     <header className="sticky top-0 z-50 border-b border-ink/10 bg-paper/95 backdrop-blur-md">
-      <p className="bg-ink px-3 py-2 text-center text-[10px] tracking-[0.22em] text-gold uppercase sm:text-[11px]">
+      <p className="border-b border-ink/10 bg-cream px-3 py-2 text-center text-[10px] tracking-[0.22em] text-ink-soft uppercase sm:text-[11px]">
         <span className="sm:hidden">Bags for every journey</span>
         <span className="hidden sm:inline">Bags for every journey · Karur, Tamil Nadu</span>
       </p>

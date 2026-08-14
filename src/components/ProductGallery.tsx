@@ -19,7 +19,7 @@ export function ProductGallery({ product }: { product: Product }) {
             fill
             priority
             sizes="(max-width: 768px) 100vw, 50vw"
-            className="object-cover"
+            className="object-cover object-center"
           />
         )}
       </div>
@@ -30,19 +30,22 @@ export function ProductGallery({ product }: { product: Product }) {
               key={img.key}
               type="button"
               onClick={() => setActive(i)}
-              className={`relative aspect-square border ${i === active ? "border-ink" : "border-ink/10"}`}
+              className={`relative aspect-[4/5] border ${i === active ? "border-ink" : "border-ink/10"}`}
             >
-              <AssetImage src={img.src} alt={img.key} fill className="object-cover" sizes="80px" />
+              <AssetImage
+                src={img.src}
+                alt={img.key}
+                fill
+                className="object-cover object-center"
+                sizes="80px"
+              />
             </button>
           ))}
         </div>
       )}
-      {images.length === 1 && (
-        <p className="mt-3 text-xs text-ink-soft">
-          Product photography in progress — front, back, sides, interior, details and lifestyle
-          images will appear here after the shoot.
-        </p>
-      )}
+      <p className="mt-3 text-xs text-ink-soft">
+        Placeholder photography — your product images will replace these after the shoot.
+      </p>
     </div>
   );
 }

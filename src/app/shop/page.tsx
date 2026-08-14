@@ -15,7 +15,7 @@ export default function ShopPage() {
       <h1 className="mt-2 font-serif text-4xl sm:text-5xl">All bags</h1>
       <p className="mt-3 max-w-xl text-sm text-ink-soft">
         Retail prices will appear here once confirmed. Wholesale pricing stays private — request a
-        quote from the business page.
+        quote from the business page. Photos are placeholders until you attach product images.
       </p>
       <div className="mt-10">
         <Suspense>
