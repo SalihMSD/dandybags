@@ -72,6 +72,8 @@ function item(
     images?: ProductImages;
     seoTitle?: string;
     seoDescription?: string;
+    mrp?: number | null;
+    sellingPrice?: number | null;
   },
 ): Product {
   const cat = categories.find((c) => c.slug === partial.category)!;
