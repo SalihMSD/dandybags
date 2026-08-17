@@ -1,6 +1,7 @@
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { clientKey, rateLimit } from "@/lib/auth/rate-limit";
-import { hashToken, nowIso, readStore, updateStore } from "@/lib/db/store";
+import { hashToken } from "@/lib/db/store";
+import { consumeVerifyToken, findAuthToken } from "@/lib/db/tokens";
 
 export const runtime = "nodejs";
 
@@ -18,20 +19,10 @@ export async function POST(request: Request) {
   const token = String(body.token || "");
   if (!token) return jsonError("This verification link is not valid.", 400);
 
-  const tokenHash = hashToken(token);
-  const store = readStore();
-  const row = store.tokens.find((t) => t.tokenHash === tokenHash && t.type === "VERIFY_EMAIL");
+  const row = await findAuthToken(hashToken(token), "VERIFY_EMAIL");
   if (!row || row.usedAt) return jsonError("This verification link is not valid.", 400);
-  if (new Date(row.expiresAt) < new Date()) return jsonError("This verification link has expired.", 400);
+  if (row.expiresAt < new Date()) return jsonError("This verification link has expired.", 400);
 
-  await updateStore((s) => {
-    const tok = s.tokens.find((t) => t.id === row.id);
-    const user = s.users.find((u) => u.id === row.userId);
-    if (tok) tok.usedAt = nowIso();
-    if (user) {
-      user.emailVerified = true;
-      user.updatedAt = nowIso();
-    }
-  });
+  await consumeVerifyToken(row.id, row.userId);
   return Response.json({ ok: true });
 }

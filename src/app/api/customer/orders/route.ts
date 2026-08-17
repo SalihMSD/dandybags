@@ -1,15 +1,13 @@
 import { jsonError } from "@/lib/auth/helpers";
 import { requireCustomer } from "@/lib/auth/session";
-import { readStore } from "@/lib/db/store";
+import { listCustomerOrders } from "@/lib/db/orders";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
     const user = await requireCustomer();
-    const orders = readStore()
-      .orders.filter((o) => o.userId === user.id)
-      .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+    const orders = await listCustomerOrders(user.id);
     return Response.json({ orders });
   } catch {
     return jsonError("Please log in.", 401);

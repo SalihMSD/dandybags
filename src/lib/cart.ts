@@ -20,9 +20,9 @@ export function readCart(): CartLine[] {
   }
 }
 
-export function writeCart(lines: CartLine[]) {
+export function writeCart(lines: CartLine[], silent = false) {
   localStorage.setItem(KEY, JSON.stringify(lines));
-  window.dispatchEvent(new Event("dandy-cart"));
+  if (!silent) window.dispatchEvent(new Event("dandy-cart"));
 }
 
 export function addToCart(product: Product, qty = 1) {

@@ -3,7 +3,8 @@ import { createSession } from "@/lib/auth/session";
 import { clientKey, rateLimit } from "@/lib/auth/rate-limit";
 import { normalizeEmail } from "@/lib/auth/validate";
 import { verifyPassword } from "@/lib/db/password";
-import { nowIso, publicUser, readStore, updateStore } from "@/lib/db/store";
+import { publicUser } from "@/lib/db/store";
+import { findAdminByEmail, touchLastLogin } from "@/lib/db/users";
 
 export const runtime = "nodejs";
 
@@ -21,16 +22,13 @@ export async function POST(request: Request) {
   }
   const email = normalizeEmail(String(body.email || ""));
   const password = String(body.password || "");
-  const user = readStore().users.find((u) => u.email === email && u.role === "ADMIN");
+  const user = await findAdminByEmail(email);
   if (!user) return jsonError("Invalid email/mobile number or password.", 401);
   const ok = await verifyPassword(password, user.passwordHash);
   if (!ok) return jsonError("Invalid email/mobile number or password.", 401);
   if (user.status !== "ACTIVE") return jsonError("This account is not available.", 403);
 
-  await updateStore((s) => {
-    const row = s.users.find((u) => u.id === user.id);
-    if (row) row.lastLoginAt = nowIso();
-  });
+  await touchLastLogin(user.id);
   await createSession(user.id, "ADMIN");
   return Response.json({ ok: true, user: publicUser(user) });
 }

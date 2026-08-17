@@ -6,13 +6,19 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint"
+    "lint": "next lint",
+    "prisma:generate": "prisma generate",
+    "prisma:migrate": "node scripts/prisma-with-local-env.cjs migrate deploy",
+    "prisma:status": "node scripts/prisma-with-local-env.cjs migrate status",
+    "seed:products": "node scripts/run-seed-products.cjs"
   },
   "dependencies": {
+    "@prisma/client": "^6.19.3",
     "bcryptjs": "^3.0.3",
     "jose": "^6.2.8",
     "next": "^15.5.9",
     "nodemailer": "^9.0.5",
+    "razorpay": "^2.9.8",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"
   },
@@ -26,7 +32,9 @@
     "eslint": "^9.39.5",
     "eslint-config-next": "^16.3.0",
     "postcss": "^8.5.26",
+    "prisma": "^6.19.3",
     "tailwindcss": "^4.3.3",
+    "tsx": "^4.23.12",
     "typescript": "^6.0.3"
   }
 }

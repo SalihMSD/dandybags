@@ -1,8 +1,8 @@
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { clientKey, rateLimit } from "@/lib/auth/rate-limit";
-import { passwordIssues } from "@/lib/db/password";
-import { hashPassword } from "@/lib/db/password";
-import { hashToken, nowIso, readStore, updateStore } from "@/lib/db/store";
+import { hashPassword, passwordIssues } from "@/lib/db/password";
+import { hashToken } from "@/lib/db/store";
+import { consumeResetToken, findAuthToken } from "@/lib/db/tokens";
 
 export const runtime = "nodejs";
 
@@ -25,22 +25,11 @@ export async function POST(request: Request) {
   const pwdErr = passwordIssues(password);
   if (pwdErr) return jsonError(pwdErr, 400);
 
-  const tokenHash = hashToken(token);
-  const store = readStore();
-  const row = store.tokens.find((t) => t.tokenHash === tokenHash && t.type === "RESET_PASSWORD");
+  const row = await findAuthToken(hashToken(token), "RESET_PASSWORD");
   if (!row || row.usedAt) return jsonError("This reset link is not valid.", 400);
-  if (new Date(row.expiresAt) < new Date()) return jsonError("This reset link has expired.", 400);
+  if (row.expiresAt < new Date()) return jsonError("This reset link has expired.", 400);
 
   const passwordHash = await hashPassword(password);
-  await updateStore((s) => {
-    const tok = s.tokens.find((t) => t.id === row.id);
-    const user = s.users.find((u) => u.id === row.userId);
-    if (tok) tok.usedAt = nowIso();
-    if (user) {
-      user.passwordHash = passwordHash;
-      user.updatedAt = nowIso();
-    }
-    s.sessions = s.sessions.filter((x) => x.userId !== row.userId);
-  });
+  await consumeResetToken(row.id, row.userId, passwordHash);
   return Response.json({ ok: true });
 }

@@ -3,7 +3,8 @@ import { ensureAdmin, jsonError, originOk } from "@/lib/auth/helpers";
 import { clientKey, rateLimit } from "@/lib/auth/rate-limit";
 import { isValidEmail, isValidPhone, normalizeEmail, normalizePhone, registerIssues } from "@/lib/auth/validate";
 import { hashPassword, passwordIssues } from "@/lib/db/password";
-import { newId, nowIso, publicUser, readStore, updateStore } from "@/lib/db/store";
+import { publicUser } from "@/lib/db/store";
+import { createCustomer, isUniqueConstraint } from "@/lib/db/users";
 
 export const runtime = "nodejs";
 
@@ -35,41 +36,31 @@ export async function POST(request: Request) {
   const pwdErr = passwordIssues(password);
   if (pwdErr) return jsonError(pwdErr, 400);
 
-  const store = readStore();
-  if (store.users.some((u) => u.email === email)) {
-    return jsonError("An account already exists with this email.", 409);
-  }
-  if (store.users.some((u) => u.phone === phone)) {
-    return jsonError("An account already exists with this mobile number.", 409);
-  }
-
   const passwordHash = await hashPassword(password);
-  const user = await updateStore((s) => {
-    if (s.users.some((u) => u.email === email || u.phone === phone)) return null;
-    const t = nowIso();
-    const row = {
-      id: newId("usr"),
+  try {
+    const user = await createCustomer({
       fullName: fullName.trim(),
       email,
       phone,
       passwordHash,
-      role: "CUSTOMER" as const,
-      status: "ACTIVE" as const,
-      emailVerified: false,
-      createdAt: t,
-      updatedAt: t,
-      lastLoginAt: null,
-    };
-    s.users.push(row);
-    return row;
-  });
-  if (!user) return jsonError("An account already exists with this email.", 409);
-
-  const token = await issueToken(user.id, "VERIFY_EMAIL", 24);
-  const url = await sendVerifyEmail(user, token);
-  return Response.json({
-    ok: true,
-    user: publicUser(user),
-    verifyUrl: smtpConfigured() ? undefined : url,
-  });
+    });
+    const token = await issueToken(user.id, "VERIFY_EMAIL", 24);
+    const url = await sendVerifyEmail(user, token);
+    return Response.json({
+      ok: true,
+      user: publicUser(user),
+      verifyUrl: smtpConfigured() ? undefined : url,
+    });
+  } catch (error) {
+    if (isUniqueConstraint(error, "email")) {
+      return jsonError("An account already exists with this email.", 409);
+    }
+    if (isUniqueConstraint(error, "phone")) {
+      return jsonError("An account already exists with this mobile number.", 409);
+    }
+    if (isUniqueConstraint(error)) {
+      return jsonError("An account already exists with this email.", 409);
+    }
+    return jsonError("Something went wrong. Please try again.", 500);
+  }
 }

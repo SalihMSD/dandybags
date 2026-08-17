@@ -1,14 +1,14 @@
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { requireCustomer } from "@/lib/auth/session";
-import { nowIso, readStore, updateStore, type CartItemRecord } from "@/lib/db/store";
+import { getCustomerCart, replaceCustomerCart } from "@/lib/db/cart";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
     const user = await requireCustomer();
-    const cart = readStore().carts.find((c) => c.userId === user.id);
-    return Response.json({ items: cart?.items ?? [] });
+    const cart = await getCustomerCart(user.id);
+    return Response.json(cart);
   } catch {
     return jsonError("Please log in.", 401);
   }
@@ -16,30 +16,24 @@ export async function GET() {
 
 export async function PUT(request: Request) {
   if (!originOk(request)) return jsonError("Invalid request.", 403);
+  let user: Awaited<ReturnType<typeof requireCustomer>>;
   try {
-    const user = await requireCustomer();
-    const body = (await request.json()) as { items?: CartItemRecord[] };
-    const items = Array.isArray(body.items) ? body.items : [];
-    const saved = await updateStore((s) => {
-      let cart = s.carts.find((c) => c.userId === user.id);
-      if (!cart) {
-        cart = { userId: user.id, items: [], updatedAt: nowIso() };
-        s.carts.push(cart);
-      }
-      cart.items = items
-        .filter((i) => i?.sku && Number(i.qty) > 0)
-        .map((i) => ({
-          sku: String(i.sku),
-          slug: String(i.slug || ""),
-          name: String(i.name || ""),
-          qty: Number(i.qty) || 1,
-          image: String(i.image || ""),
-        }));
-      cart.updatedAt = nowIso();
-      return cart.items;
-    });
-    return Response.json({ items: saved });
+    user = await requireCustomer();
   } catch {
     return jsonError("Please log in.", 401);
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return jsonError("Something went wrong. Please try again.", 400);
+  }
+
+  try {
+    const cart = await replaceCustomerCart(user.id, body.items);
+    return Response.json(cart);
+  } catch {
+    return jsonError("Something went wrong. Please try again.", 500);
   }
 }

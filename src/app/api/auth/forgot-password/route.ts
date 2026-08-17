@@ -2,7 +2,7 @@ import { issueToken, sendResetEmail } from "@/lib/auth/mail";
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { clientKey, rateLimit } from "@/lib/auth/rate-limit";
 import { isValidEmail, normalizeEmail } from "@/lib/auth/validate";
-import { readStore } from "@/lib/db/store";
+import { findCustomerByEmailOrPhone } from "@/lib/db/users";
 
 export const runtime = "nodejs";
 
@@ -20,8 +20,8 @@ export async function POST(request: Request) {
   const email = normalizeEmail(String(body.email || ""));
   const message = "If an account exists with this email, a password reset link has been sent.";
   if (isValidEmail(email)) {
-    const user = readStore().users.find((u) => u.email === email && u.role === "CUSTOMER");
-    if (user) {
+    const user = await findCustomerByEmailOrPhone(email, "");
+    if (user && user.role === "CUSTOMER") {
       const token = await issueToken(user.id, "RESET_PASSWORD", 1);
       await sendResetEmail(user, token);
     }

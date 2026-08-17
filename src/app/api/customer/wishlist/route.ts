@@ -1,17 +1,13 @@
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { requireCustomer } from "@/lib/auth/session";
-import { products } from "@/lib/products";
-import { nowIso, readStore, updateStore } from "@/lib/db/store";
+import { addWishlistItem, listWishlist, removeWishlistItem } from "@/lib/db/wishlist";
 
 export const runtime = "nodejs";
 
 export async function GET() {
   try {
     const user = await requireCustomer();
-    const skus = readStore().wishlist.filter((w) => w.userId === user.id).map((w) => w.sku);
-    const items = skus
-      .map((sku) => products.find((p) => p.sku === sku))
-      .filter(Boolean);
+    const items = await listWishlist(user.id);
     return Response.json({ items });
   } catch {
     return jsonError("Please log in.", 401);
@@ -20,33 +16,43 @@ export async function GET() {
 
 export async function POST(request: Request) {
   if (!originOk(request)) return jsonError("Invalid request.", 403);
+  let user: Awaited<ReturnType<typeof requireCustomer>>;
   try {
-    const user = await requireCustomer();
-    const body = (await request.json()) as { sku?: string };
-    const sku = String(body.sku || "");
-    if (!products.some((p) => p.sku === sku)) return jsonError("Product not found.", 404);
-    await updateStore((s) => {
-      if (!s.wishlist.some((w) => w.userId === user.id && w.sku === sku)) {
-        s.wishlist.push({ userId: user.id, sku, addedAt: nowIso() });
-      }
-    });
-    return Response.json({ ok: true });
+    user = await requireCustomer();
   } catch {
     return jsonError("Please log in.", 401);
   }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return jsonError("Something went wrong. Please try again.", 400);
+  }
+
+  const sku = String(body.sku || "");
+  const result = await addWishlistItem(user.id, sku);
+  if (!result.ok) return jsonError(result.error, result.status);
+  return Response.json({ ok: true });
 }
 
 export async function DELETE(request: Request) {
   if (!originOk(request)) return jsonError("Invalid request.", 403);
+  let user: Awaited<ReturnType<typeof requireCustomer>>;
   try {
-    const user = await requireCustomer();
-    const body = (await request.json()) as { sku?: string };
-    const sku = String(body.sku || "");
-    await updateStore((s) => {
-      s.wishlist = s.wishlist.filter((w) => !(w.userId === user.id && w.sku === sku));
-    });
-    return Response.json({ ok: true });
+    user = await requireCustomer();
   } catch {
     return jsonError("Please log in.", 401);
   }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return jsonError("Something went wrong. Please try again.", 400);
+  }
+
+  const sku = String(body.sku || "");
+  await removeWishlistItem(user.id, sku);
+  return Response.json({ ok: true });
 }

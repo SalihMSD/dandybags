@@ -1,0 +1,231 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  CUSTOMER
+  ADMIN
+}
+
+enum AccountStatus {
+  ACTIVE
+  DISABLED
+}
+
+enum TokenType {
+  VERIFY_EMAIL
+  RESET_PASSWORD
+}
+
+enum PaymentStatus {
+  PENDING
+  PAID
+  FAILED
+}
+
+enum OrderStatus {
+  PLACED
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+model User {
+  id            String        @id
+  fullName      String
+  email         String        @unique
+  phone         String        @unique
+  passwordHash  String
+  role          Role
+  status        AccountStatus @default(ACTIVE)
+  emailVerified Boolean       @default(false)
+  lastLoginAt   DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  addresses Address[]
+  cart      Cart?
+  wishlist  Wishlist[]
+  orders    Order[]
+  sessions  Session[]
+  tokens    AuthToken[]
+
+  @@index([role])
+  @@map("users")
+}
+
+model Address {
+  id        String  @id
+  userId    String
+  user      User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fullName  String
+  phone     String
+  line1     String
+  line2     String  @default("")
+  city      String
+  state     String
+  pincode   String
+  landmark  String  @default("")
+  isDefault Boolean @default(false)
+
+  @@index([userId])
+  @@map("addresses")
+}
+
+model Cart {
+  id        String     @id
+  userId    String     @unique
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  items     CartItem[]
+  updatedAt DateTime   @updatedAt
+
+  @@map("carts")
+}
+
+model CartItem {
+  id      String  @id
+  cartId  String
+  cart    Cart    @relation(fields: [cartId], references: [id], onDelete: Cascade)
+  sku     String
+  product Product @relation(fields: [sku], references: [sku], onDelete: Restrict)
+  qty     Int
+
+  @@unique([cartId, sku])
+  @@index([sku])
+  @@map("cart_items")
+}
+
+model Wishlist {
+  id      String   @id
+  userId  String
+  user    User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sku     String
+  product Product  @relation(fields: [sku], references: [sku], onDelete: Restrict)
+  addedAt DateTime @default(now())
+
+  @@unique([userId, sku])
+  @@index([sku])
+  @@map("wishlists")
+}
+
+model Order {
+  id            String        @id
+  userId        String
+  user          User          @relation(fields: [userId], references: [id], onDelete: Restrict)
+  totalLabel    String
+  paymentStatus PaymentStatus @default(PENDING)
+  orderStatus   OrderStatus   @default(PLACED)
+  shipFullName  String
+  shipPhone     String
+  shipLine1     String
+  shipLine2     String        @default("")
+  shipCity      String
+  shipState     String
+  shipPincode   String
+  shipLandmark  String        @default("")
+  shippingProvider String?
+  trackingNumber   String?
+  shippedAt        DateTime?
+  deliveredAt      DateTime?
+  razorpayOrderId    String?  @unique
+  razorpayPaymentId  String?
+  items         OrderItem[]
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([userId, createdAt])
+  @@map("orders")
+}
+
+model OrderItem {
+  id        String   @id
+  orderId   String
+  order     Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  sku       String
+  slug      String
+  name      String
+  qty       Int
+  image     String
+  unitPrice Decimal? @db.Decimal(10, 2)
+
+  @@index([orderId])
+  @@index([sku])
+  @@map("order_items")
+}
+
+model Session {
+  id        String   @id
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}
+
+model AuthToken {
+  id        String    @id
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      TokenType
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+
+  @@index([userId, type])
+  @@index([expiresAt])
+  @@map("auth_tokens")
+}
+
+model Product {
+  id             String   @id
+  sku            String   @unique
+  slug           String   @unique
+  name           String
+  /// One of: school-bags, college-bags, backpacks, travel-bags, sling-bags, handbags, ladies-purses
+  category       String
+  subcategory    String
+  imageFront     String
+  imageBack      String?
+  imageLeft      String?
+  imageRight     String?
+  imageTop       String?
+  imageBottom    String?
+  imageInside    String?
+  imageZipper    String?
+  imageStrap     String?
+  imageLifestyle String?
+  colour         String
+  material       String
+  weight         String
+  length         String
+  width          String
+  height         String
+  capacity       String
+  compartments   String
+  features       String[]
+  mrp            Decimal? @db.Decimal(10, 2)
+  sellingPrice   Decimal? @db.Decimal(10, 2)
+  stock          Int?
+  b2cAvailable   Boolean  @default(true)
+  featured       Boolean  @default(false)
+  description    String
+  seoTitle       String
+  seoDescription String
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  cartItems      CartItem[]
+  wishlist       Wishlist[]
+
+  @@index([category])
+  @@index([featured])
+  @@map("products")
+}

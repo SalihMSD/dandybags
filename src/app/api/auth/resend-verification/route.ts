@@ -2,7 +2,7 @@ import { issueToken, sendVerifyEmail, smtpConfigured } from "@/lib/auth/mail";
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { clientKey, rateLimit } from "@/lib/auth/rate-limit";
 import { isValidEmail, normalizeEmail, normalizePhone } from "@/lib/auth/validate";
-import { readStore } from "@/lib/db/store";
+import { findCustomerByEmailOrPhone } from "@/lib/db/users";
 
 export const runtime = "nodejs";
 
@@ -21,10 +21,11 @@ export async function POST(request: Request) {
   const email = normalizeEmail(raw);
   const phone = normalizePhone(raw);
   const generic = { ok: true as const };
-  const user = readStore().users.find(
-    (u) => u.role === "CUSTOMER" && ((isValidEmail(email) && u.email === email) || u.phone === phone),
+  const user = await findCustomerByEmailOrPhone(
+    isValidEmail(email) ? email : "",
+    phone,
   );
-  if (user && !user.emailVerified) {
+  if (user && user.role === "CUSTOMER" && !user.emailVerified) {
     const token = await issueToken(user.id, "VERIFY_EMAIL", 24);
     const url = await sendVerifyEmail(user, token);
     return Response.json({

@@ -73,6 +73,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const logout = useCallback(async () => {
     await fetch("/api/auth/logout", { method: "POST", credentials: "include" });
     setUser(null);
+    writeCart([], true);
     window.location.href = "/";
   }, []);
 

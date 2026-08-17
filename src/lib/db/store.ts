@@ -176,7 +176,15 @@ export async function updateStore<T>(fn: (store: Store) => T | Promise<T>): Prom
   return run;
 }
 
-export function publicUser(user: UserRecord) {
+export function publicUser(user: {
+  id: string;
+  fullName: string;
+  email: string;
+  phone: string;
+  role: Role;
+  emailVerified: boolean;
+  status: AccountStatus | string;
+}) {
   return {
     id: user.id,
     fullName: user.fullName,

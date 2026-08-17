@@ -6,6 +6,7 @@ const basePath = isGitHubPages ? "/dandybags" : "";
 const nextConfig: NextConfig = {
   output: isGitHubPages ? "export" : undefined,
   basePath,
+  serverExternalPackages: ["@prisma/client", "prisma", "razorpay"],
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
   },

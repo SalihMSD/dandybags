@@ -1,21 +1,8 @@
 import nodemailer from "nodemailer";
-import { hashToken, newId, nowIso, randomToken, type UserRecord, updateStore } from "@/lib/db/store";
+import { issueAuthToken } from "@/lib/db/tokens";
 
 export async function issueToken(userId: string, type: "VERIFY_EMAIL" | "RESET_PASSWORD", hours: number) {
-  const token = randomToken();
-  const expiresAt = new Date(Date.now() + hours * 60 * 60 * 1000).toISOString();
-  await updateStore((s) => {
-    s.tokens = s.tokens.filter((t) => !(t.userId === userId && t.type === type && !t.usedAt));
-    s.tokens.push({
-      id: newId("tok"),
-      userId,
-      type,
-      tokenHash: hashToken(token),
-      expiresAt,
-      usedAt: null,
-    });
-  });
-  return token;
+  return issueAuthToken(userId, type, hours);
 }
 
 export function appUrl() {
@@ -27,11 +14,6 @@ export function smtpConfigured() {
 }
 
 async function deliverMail(subject: string, to: string, text: string) {
-  const line = { at: nowIso(), to, subject, text };
-  void updateStore((s) => {
-    s.outbox.push(line);
-  });
-
   if (!smtpConfigured()) {
     console.info(`[DANDY mail] SMTP not configured. Would send to=${to} subject=${subject}\n${text}`);
     return;
@@ -55,8 +37,8 @@ async function deliverMail(subject: string, to: string, text: string) {
       subject,
       text,
     });
-  } catch (err) {
-    console.error("[DANDY mail] SMTP send failed", err);
+  } catch {
+    console.error("[DANDY mail] SMTP send failed");
     throw new Error("Email could not be sent. Please try again.");
   }
 }
@@ -65,7 +47,7 @@ export function verifyUrl(token: string) {
   return `${appUrl()}/verify-email?token=${token}`;
 }
 
-export async function sendVerifyEmail(user: UserRecord, token: string) {
+export async function sendVerifyEmail(user: { fullName: string; email: string }, token: string) {
   const url = verifyUrl(token);
   await deliverMail(
     "Verify Your DANDY Account",
@@ -75,7 +57,7 @@ export async function sendVerifyEmail(user: UserRecord, token: string) {
   return url;
 }
 
-export async function sendResetEmail(user: UserRecord, token: string) {
+export async function sendResetEmail(user: { fullName: string; email: string }, token: string) {
   const url = `${appUrl()}/reset-password?token=${token}`;
   await deliverMail(
     "Reset your DANDY password",

@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Script from "next/script";
 import { useRouter } from "next/navigation";
 import { readCart, writeCart, type CartLine } from "@/lib/cart";
 import { AssetImage } from "@/components/AssetImage";
@@ -18,6 +19,31 @@ type Address = {
   pincode: string;
   isDefault: boolean;
 };
+
+type PaymentSession = {
+  keyId: string;
+  razorpayOrderId: string;
+  amount: number;
+  currency: string;
+  orderId: string;
+};
+
+type RazorpayCheckout = {
+  open: () => void;
+};
+
+type RazorpayCtor = new (options: {
+  key: string;
+  amount: number;
+  currency: string;
+  order_id: string;
+  name: string;
+  handler: (response: {
+    razorpay_payment_id: string;
+    razorpay_order_id: string;
+    razorpay_signature: string;
+  }) => void;
+}) => RazorpayCheckout;
 
 export default function CheckoutPage() {
   const router = useRouter();
@@ -38,27 +64,61 @@ export default function CheckoutPage() {
       });
   }, []);
 
-  async function placeOrder() {
+  async function pay() {
     setPending(true);
     setError("");
-    const res = await fetch("/api/customer/checkout", {
+    const res = await fetch("/api/customer/payments/create", {
       method: "POST",
       credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ addressId }),
     });
-    const data = (await res.json()) as { error?: string; order?: { id: string } };
-    setPending(false);
+    const data = (await res.json()) as PaymentSession & { error?: string };
     if (!res.ok) {
+      setPending(false);
       setError(data.error || "Something went wrong. Please try again.");
       return;
     }
-    writeCart([]);
-    router.push(`/checkout/confirmation?orderId=${data.order?.id}`);
+
+    const Razorpay = (window as Window & { Razorpay?: RazorpayCtor }).Razorpay;
+    if (!Razorpay) {
+      setPending(false);
+      setError("Payment could not be started. Please try again.");
+      return;
+    }
+
+    const checkout = new Razorpay({
+      key: data.keyId,
+      amount: data.amount,
+      currency: data.currency,
+      order_id: data.razorpayOrderId,
+      name: "DANDY",
+      handler: (response) => {
+        void (async () => {
+          const verify = await fetch("/api/customer/payments/verify", {
+            method: "POST",
+            credentials: "include",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(response),
+          });
+          const verified = (await verify.json()) as { error?: string; orderId?: string };
+          setPending(false);
+          if (!verify.ok) {
+            setError(verified.error || "Payment could not be verified.");
+            return;
+          }
+          writeCart([]);
+          router.push(`/checkout/confirmation?orderId=${verified.orderId || data.orderId}`);
+        })();
+      },
+    });
+    checkout.open();
+    setPending(false);
   }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
+      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
       <h1 className="font-serif text-4xl">Checkout</h1>
       <ul className="mt-8 divide-y divide-ink/10 border border-ink/10">
         {lines.map((l) => {
@@ -97,10 +157,10 @@ export default function CheckoutPage() {
       <button
         type="button"
         disabled={pending || !addressId || lines.length === 0}
-        onClick={() => void placeOrder()}
+        onClick={() => void pay()}
         className="mt-8 h-12 bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60"
       >
-        {pending ? "Placing order..." : "Place order"}
+        {pending ? "Starting payment..." : "Pay"}
       </button>
     </div>
   );

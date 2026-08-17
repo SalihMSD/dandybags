@@ -10,6 +10,10 @@ type Order = {
   totalLabel: string;
   paymentStatus: string;
   orderStatus: string;
+  shippingProvider: string | null;
+  trackingNumber: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
   shippingAddress: {
     fullName: string;
     phone: string;
@@ -58,7 +62,22 @@ export default function OrderDetailPage() {
           {order.shippingAddress.fullName}, {order.shippingAddress.line1}, {order.shippingAddress.city},{" "}
           {order.shippingAddress.state} {order.shippingAddress.pincode}
         </p>
-        <p className="mt-4">Tracking: updates will appear here after dispatch.</p>
+        <p className="mt-4">
+          {order.shippingProvider || order.trackingNumber ? (
+            <>
+              {order.shippingProvider ? <span>Courier: {order.shippingProvider}. </span> : null}
+              {order.trackingNumber ? <span>Tracking number: {order.trackingNumber}.</span> : null}
+              {order.shippedAt ? (
+                <span> Shipped {new Date(order.shippedAt).toLocaleDateString("en-IN")}.</span>
+              ) : null}
+              {order.deliveredAt ? (
+                <span> Delivered {new Date(order.deliveredAt).toLocaleDateString("en-IN")}.</span>
+              ) : null}
+            </>
+          ) : (
+            "Tracking: updates will appear here after dispatch."
+          )}
+        </p>
       </div>
     </div>
   );

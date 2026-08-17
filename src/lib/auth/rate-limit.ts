@@ -1,3 +1,7 @@
+/**
+ * In-process memory limiter. Known limitation (unchanged in E3):
+ * counters reset on server restart and are not shared across instances.
+ */
 const windows = new Map<string, { count: number; resetAt: number }>();
 
 export function rateLimit(key: string, limit: number, windowMs: number) {
