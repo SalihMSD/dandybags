@@ -124,6 +124,20 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
         if (qty == null || qty !== item.qty || !item.product || item.product.sku !== item.sku || !item.product.b2cAvailable) {
           return { ok: false as const, error: "Your cart is empty.", status: 400 as const };
         }
+        // Pre-payment stock check: reject obviously insufficient stock before
+        // opening Razorpay Checkout. Null stock = unlimited; no check needed.
+        // The true atomic oversell guard is in the payment.captured webhook.
+        if (item.product.stock !== null && item.product.stock < item.qty) {
+          const available = item.product.stock;
+          return {
+            ok: false as const,
+            error:
+              available === 0
+                ? `Sorry, "${item.product.name}" is out of stock.`
+                : `Sorry, "${item.product.name}" only has ${available} item(s) left in stock.`,
+            status: 400 as const,
+          };
+        }
       }
 
       const payable = calculatePayable(

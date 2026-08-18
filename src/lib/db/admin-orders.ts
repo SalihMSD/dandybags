@@ -86,6 +86,28 @@ export async function updateAdminOrder(orderId: string, body: Record<string, unk
     data.deliveredAt = new Date();
   }
 
+  // Stock restoration: if a PAID order is cancelled, restore any numeric stock
+  // that was atomically deducted when the payment.captured webhook fired.
+  // Null-stock products are skipped (they were never deducted).
+  // Non-PAID orders (PENDING/FAILED) never had stock deducted — no restoration.
+  //
+  // The existing canTransition rules guarantee CANCELLED has no further transitions,
+  // so this restoration block can never run twice for the same order.
+  if (nextStatus === "CANCELLED" && existing.paymentStatus === "PAID") {
+    const updatedOrder = await prisma.$transaction(async (tx) => {
+      // Restore numeric stock for each item in the cancelled order.
+      for (const item of existing.items) {
+        await tx.product.updateMany({
+          where: { sku: item.sku, stock: { not: null } },
+          data: { stock: { increment: item.qty } },
+        });
+      }
+      return tx.order.update({ where: { id: orderId }, data, include: orderInclude });
+    });
+    return { ok: true as const, order: publicAdminOrder(updatedOrder) };
+  }
+
+  // Standard path: non-cancellation updates, or cancellation of non-PAID orders.
   const updated = await prisma.order.update({
     where: { id: orderId },
     data,
