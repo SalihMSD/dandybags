@@ -12,6 +12,7 @@ const productSelect = {
   b2cAvailable: true,
   featured: true,
   mrp: true,
+  discountPercent: true,
   imageFront: true,
   imageBack: true,
   imageLeft: true,
@@ -72,11 +73,27 @@ export async function updateAdminProduct(id: string, data: Record<string, unknow
 }
 
 export async function deleteAdminProduct(id: string) {
-  const product = await prisma.product.delete({
+  const product = await prisma.product.findUnique({
+    where: { id },
+    select: { id: true, sku: true, name: true },
+  });
+  if (!product) return null;
+
+  const wishlistCount = await prisma.wishlist.count({ where: { sku: product.sku } });
+  if (wishlistCount > 0) {
+    throw new Error(`Cannot delete "${product.name}": it is in ${wishlistCount} customer wishlist(s).`);
+  }
+
+  const cartItemCount = await prisma.cartItem.count({ where: { sku: product.sku } });
+  if (cartItemCount > 0) {
+    throw new Error(`Cannot delete "${product.name}": it is in ${cartItemCount} customer cart(s).`);
+  }
+
+  const deleted = await prisma.product.delete({
     where: { id },
     select: productSelect,
   });
-  return product;
+  return deleted;
 }
 
 export async function findProductBySku(sku: string, excludeId?: string) {

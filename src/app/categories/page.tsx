@@ -5,6 +5,7 @@ import { categories } from "@/lib/categories";
 export const metadata: Metadata = {
   title: "Bag categories",
   description: "School bags, college bags, backpacks, travel bags, sling bags, handbags and ladies purses from DANDY.",
+  alternates: { canonical: "/categories" },
 };
 
 export default function CategoriesPage() {

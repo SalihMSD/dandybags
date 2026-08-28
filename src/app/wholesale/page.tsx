@@ -5,6 +5,7 @@ import Link from "next/link";
 export const metadata: Metadata = {
   title: "Wholesale & business partners",
   description: "Partner with DANDY for wholesale bags in Tamil Nadu — retailers, dealers, distributors and bulk buyers.",
+  alternates: { canonical: "/wholesale" },
 };
 
 const audiences = [

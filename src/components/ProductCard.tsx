@@ -2,11 +2,11 @@
 
 import Link from "next/link";
 import { AssetImage } from "./AssetImage";
-import { useState } from "react";
-import { addToCart } from "@/lib/cart";
+import { useEffect, useState } from "react";
+import { addToCart, cartCount, readCart, setQty as setCartQty } from "@/lib/cart";
 import { getCategory } from "@/lib/categories";
 import { discountPercent, formatInr } from "@/lib/format";
-import { type Product } from "@/lib/products";
+import { type Product } from "@/lib/db/products";
 import { useAuth } from "./AuthProvider";
 import { useRouter } from "next/navigation";
 
@@ -14,6 +14,14 @@ function PlusIcon() {
   return (
     <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
       <path d="M12 5v14M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+    </svg>
+  );
+}
+
+function MinusIcon() {
+  return (
+    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" aria-hidden>
+      <path d="M5 12h14" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
     </svg>
   );
 }
@@ -31,8 +39,40 @@ export function ProductCard({
   const off = discountPercent(product.mrp, product.sellingPrice);
   const [added, setAdded] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [qty, setQty] = useState(0);
   const { isAuthenticated } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    const sync = () => {
+      const cart = readCart();
+      const line = cart.find((l) => l.sku === product.sku);
+      setQty(line ? line.qty : 0);
+    };
+    sync();
+    window.addEventListener("dandy-cart", sync);
+    window.addEventListener("storage", sync);
+    return () => {
+      window.removeEventListener("dandy-cart", sync);
+      window.removeEventListener("storage", sync);
+    };
+  }, [product.sku]);
+
+  function handleAdd() {
+    addToCart(product);
+    setAdded(true);
+    setTimeout(() => setAdded(false), 1200);
+  }
+
+  function handleChange(delta: number) {
+    const current = readCart().find((l) => l.sku === product.sku)?.qty ?? 0;
+    const next = current + delta;
+    if (next <= 0) {
+      setCartQty(product.sku, 0);
+    } else {
+      setCartQty(product.sku, next);
+    }
+  }
 
   return (
     <article className="product-card group relative flex h-full flex-col overflow-hidden rounded-2xl bg-paper shadow-[0_8px_24px_-18px_rgba(58,58,57,0.45)] ring-1 ring-ink/8 transition-[transform,box-shadow] duration-200 ease-out hover:-translate-y-1.5 hover:shadow-[0_18px_36px_-20px_rgba(58,58,57,0.55)]">
@@ -41,7 +81,7 @@ export function ProductCard({
         className="relative block aspect-[4/5] overflow-hidden rounded-t-2xl bg-cream"
       >
         <AssetImage
-          src={product.images.front}
+          src={product.images.master}
           alt={product.name}
           fill
           priority={priority}
@@ -110,26 +150,44 @@ export function ProductCard({
               </>
             )}
           </div>
-          <button
-            type="button"
-            onClick={() => {
-              addToCart(product);
-              setAdded(true);
-              setTimeout(() => setAdded(false), 1200);
-            }}
-            className={`mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-[13px] font-medium transition-colors duration-200 ${
-              added ? "bg-camel text-ink" : "bg-ink text-paper hover:bg-ink-soft"
-            }`}
-          >
-            {added ? (
-              "Added"
-            ) : (
-              <>
+          {qty > 0 ? (
+            <div className="mt-3 flex items-center justify-between rounded-xl bg-ink/5 px-3 py-2">
+              <button
+                type="button"
+                onClick={() => handleChange(-1)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-paper text-ink shadow-sm hover:bg-cream"
+                aria-label="Decrease quantity"
+              >
+                <MinusIcon />
+              </button>
+              <span className="text-sm font-medium">{qty}</span>
+              <button
+                type="button"
+                onClick={() => handleChange(1)}
+                className="flex h-9 w-9 items-center justify-center rounded-lg bg-ink text-paper shadow-sm hover:bg-ink-soft"
+                aria-label="Increase quantity"
+              >
                 <PlusIcon />
-                Add to cart
-              </>
-            )}
-          </button>
+              </button>
+            </div>
+          ) : (
+            <button
+              type="button"
+              onClick={handleAdd}
+              className={`mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl text-[13px] font-medium transition-colors duration-200 ${
+                added ? "bg-camel text-ink" : "bg-ink text-paper hover:bg-ink-soft"
+              }`}
+            >
+              {added ? (
+                "Added"
+              ) : (
+                <>
+                  <PlusIcon />
+                  Add to cart
+                </>
+              )}
+            </button>
+          )}
         </div>
       </div>
     </article>

@@ -4,7 +4,7 @@ import Link from "next/link";
 import { useEffect, useState } from "react";
 import { ProductCard } from "@/components/ProductCard";
 import { addToCart } from "@/lib/cart";
-import { type Product } from "@/lib/products";
+import { type Product } from "@/lib/db/products";
 
 export default function WishlistPage() {
   const [items, setItems] = useState<Product[]>([]);

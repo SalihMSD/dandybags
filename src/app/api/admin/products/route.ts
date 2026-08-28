@@ -2,8 +2,17 @@ import { jsonError, originOk } from "@/lib/auth/helpers";
 import { requireAdmin } from "@/lib/auth/session";
 import { listAdminProducts, createAdminProduct, findProductBySku, findProductBySlug } from "@/lib/db/admin-products";
 import { newId } from "@/lib/db/store";
+import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
+
+async function revalidateProductPaths(category?: string, slug?: string) {
+  revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/categories");
+  if (category) revalidatePath(`/categories/${category}`);
+  if (slug) revalidatePath(`/shop/${slug}`);
+}
 
 export async function GET() {
   try {
@@ -119,6 +128,11 @@ export async function POST(request: Request) {
       imageLifestyle,
     });
 
+    try {
+      await revalidateProductPaths(product.category, product.slug);
+    } catch {
+      // Cache revalidation is best-effort; do not fail the request.
+    }
     return Response.json({ product }, { status: 201 });
   } catch (error) {
     console.error("Failed to create product:", error);

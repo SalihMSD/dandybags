@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Shipping" };
+export const metadata: Metadata = {
+  title: "Shipping policy",
+  description: "DANDY shipping policy — dispatch timelines, serviceable pincodes and delivery charges for Tamil Nadu.",
+  alternates: { canonical: "/shipping" },
+};
 
 export default function Page() {
   return (

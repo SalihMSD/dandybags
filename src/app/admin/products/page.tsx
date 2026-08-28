@@ -15,6 +15,11 @@ type Product = {
   b2cAvailable: boolean;
   featured: boolean;
   imageFront: string;
+  imageBack: string;
+  imageLeft: string;
+  imageRight: string;
+  imageTop: string;
+  discountPercent: number;
   createdAt: string;
   updatedAt: string;
 };
@@ -30,16 +35,11 @@ type FormState = {
   stock: string;
   b2cAvailable: boolean;
   featured: boolean;
-  imageFront: string;
-  imageBack: string;
-  imageLeft: string;
-  imageRight: string;
-  imageTop: string;
-  imageBottom: string;
-  imageInside: string;
-  imageZipper: string;
-  imageStrap: string;
-  imageLifestyle: string;
+  masterImage: string;
+  sideImage1: string;
+  sideImage2: string;
+  sideImage3: string;
+  sideImage4: string;
   colour: string;
   material: string;
   weight: string;
@@ -53,6 +53,7 @@ type FormState = {
   seoTitle: string;
   seoDescription: string;
   mrp: string;
+  discountPercent: string;
 };
 
 const emptyForm: FormState = {
@@ -65,16 +66,11 @@ const emptyForm: FormState = {
   stock: "",
   b2cAvailable: true,
   featured: false,
-  imageFront: "",
-  imageBack: "",
-  imageLeft: "",
-  imageRight: "",
-  imageTop: "",
-  imageBottom: "",
-  imageInside: "",
-  imageZipper: "",
-  imageStrap: "",
-  imageLifestyle: "",
+  masterImage: "",
+  sideImage1: "",
+  sideImage2: "",
+  sideImage3: "",
+  sideImage4: "",
   colour: "",
   material: "",
   weight: "",
@@ -88,6 +84,7 @@ const emptyForm: FormState = {
   seoTitle: "",
   seoDescription: "",
   mrp: "",
+  discountPercent: "0",
 };
 
 const categories = [
@@ -107,6 +104,7 @@ export default function AdminProducts() {
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [editing, setEditing] = useState(false);
+  const [showForm, setShowForm] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -125,6 +123,7 @@ export default function AdminProducts() {
   function openCreate() {
     setForm(emptyForm);
     setEditing(false);
+    setShowForm(true);
   }
 
   function openEdit(product: Product) {
@@ -139,16 +138,11 @@ export default function AdminProducts() {
       stock: product.stock !== null ? String(product.stock) : "",
       b2cAvailable: product.b2cAvailable,
       featured: product.featured,
-      imageFront: product.imageFront,
-      imageBack: "",
-      imageLeft: "",
-      imageRight: "",
-      imageTop: "",
-      imageBottom: "",
-      imageInside: "",
-      imageZipper: "",
-      imageStrap: "",
-      imageLifestyle: "",
+      masterImage: product.imageFront,
+      sideImage1: product.imageBack || "",
+      sideImage2: product.imageLeft || "",
+      sideImage3: product.imageRight || "",
+      sideImage4: product.imageTop || "",
       colour: "",
       material: "",
       weight: "",
@@ -162,8 +156,10 @@ export default function AdminProducts() {
       seoTitle: "",
       seoDescription: "",
       mrp: "",
+      discountPercent: String(product.discountPercent || 0),
     });
     setEditing(true);
+    setShowForm(true);
   }
 
   async function handleSubmit(e: React.FormEvent) {
@@ -171,31 +167,36 @@ export default function AdminProducts() {
     setSaving(true);
     setError("");
 
+    const mrp = form.mrp ? Number(form.mrp) : null;
+    const discountPercent = form.discountPercent ? Number(form.discountPercent) : 0;
+    let sellingPrice = form.sellingPrice ? Number(form.sellingPrice) : null;
+
+    if (mrp !== null && discountPercent > 0) {
+      const calculated = mrp * (1 - discountPercent / 100);
+      sellingPrice = Math.round(calculated * 100) / 100;
+    }
+
     const payload: Record<string, unknown> = {
       name: form.name,
       sku: form.sku,
       slug: form.slug,
       category: form.category,
       subcategory: form.subcategory,
-      sellingPrice: form.sellingPrice || null,
+      sellingPrice: sellingPrice,
       stock: form.stock === "" ? null : Number(form.stock),
       b2cAvailable: form.b2cAvailable,
       featured: form.featured,
-      imageFront: form.imageFront,
+      imageFront: form.masterImage,
       description: form.description,
       seoTitle: form.seoTitle,
       seoDescription: form.seoDescription,
+      discountPercent,
     };
 
-    if (form.imageBack) payload.imageBack = form.imageBack;
-    if (form.imageLeft) payload.imageLeft = form.imageLeft;
-    if (form.imageRight) payload.imageRight = form.imageRight;
-    if (form.imageTop) payload.imageTop = form.imageTop;
-    if (form.imageBottom) payload.imageBottom = form.imageBottom;
-    if (form.imageInside) payload.imageInside = form.imageInside;
-    if (form.imageZipper) payload.imageZipper = form.imageZipper;
-    if (form.imageStrap) payload.imageStrap = form.imageStrap;
-    if (form.imageLifestyle) payload.imageLifestyle = form.imageLifestyle;
+    if (form.sideImage1) payload.imageBack = form.sideImage1;
+    if (form.sideImage2) payload.imageLeft = form.sideImage2;
+    if (form.sideImage3) payload.imageRight = form.sideImage3;
+    if (form.sideImage4) payload.imageTop = form.sideImage4;
     if (form.colour) payload.colour = form.colour;
     if (form.material) payload.material = form.material;
     if (form.weight) payload.weight = form.weight;
@@ -205,7 +206,7 @@ export default function AdminProducts() {
     if (form.capacity) payload.capacity = form.capacity;
     if (form.compartments) payload.compartments = form.compartments;
     if (form.features) payload.features = form.features.split(",").map((s) => s.trim()).filter(Boolean);
-    if (form.mrp) payload.mrp = Number(form.mrp);
+    if (mrp) payload.mrp = mrp;
 
     const url = editing && form.id ? `/api/admin/products/${form.id}` : "/api/admin/products";
     const method = editing ? "PATCH" : "POST";
@@ -222,6 +223,7 @@ export default function AdminProducts() {
     else {
       setEditing(false);
       setForm(emptyForm);
+      setShowForm(false);
       await load();
     }
     setSaving(false);
@@ -306,12 +308,12 @@ export default function AdminProducts() {
         </table>
       </div>
 
-      {(editing || form.name) && (
+      {(showForm) && (
         <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
           <form onSubmit={handleSubmit} className="mt-10 w-full max-w-2xl rounded bg-paper p-6 shadow">
             <div className="flex items-center justify-between">
               <h2 className="font-serif text-2xl">{editing ? "Edit Product" : "New Product"}</h2>
-              <button type="button" onClick={() => { setEditing(false); setForm(emptyForm); }} className="text-sm underline">Close</button>
+              <button type="button" onClick={() => { setEditing(false); setForm(emptyForm); setShowForm(false); }} className="text-sm underline">Close</button>
             </div>
 
             <div className="mt-6 grid gap-4 sm:grid-cols-2">
@@ -340,52 +342,41 @@ export default function AdminProducts() {
                 <input value={form.subcategory} onChange={(e) => updateField("subcategory", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
               </label>
               <label className="block text-sm">
+                MRP (₹)
+                <input type="number" step="0.01" value={form.mrp} onChange={(e) => updateField("mrp", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
+              </label>
+              <label className="block text-sm">
+                Discount %
+                <input type="number" step="1" min="0" max="100" value={form.discountPercent} onChange={(e) => updateField("discountPercent", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
+              </label>
+              <label className="block text-sm">
                 Selling Price (₹)
-                <input type="number" step="0.01" value={form.sellingPrice} onChange={(e) => updateField("sellingPrice", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
+                <input type="number" step="0.01" value={form.sellingPrice} readOnly className="mt-1 w-full border border-ink/10 bg-cream px-3 py-2 text-sm" />
+                <p className="text-xs text-ink-soft">Auto-calculated from MRP and discount.</p>
               </label>
               <label className="block text-sm">
                 Stock (leave empty for unlimited)
                 <input type="number" value={form.stock} onChange={(e) => updateField("stock", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
               </label>
               <label className="block text-sm">
-                Front Image *
-                <input required value={form.imageFront} onChange={(e) => updateField("imageFront", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
+                Master Image *
+                <input required value={form.masterImage} onChange={(e) => updateField("masterImage", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
               </label>
               <label className="block text-sm">
-                Lifestyle Image
-                <input value={form.imageLifestyle} onChange={(e) => updateField("imageLifestyle", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
+                Product View 1
+                <input value={form.sideImage1} onChange={(e) => updateField("sideImage1", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
               </label>
               <label className="block text-sm">
-                Back Image
-                <input value={form.imageBack} onChange={(e) => updateField("imageBack", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
+                Product View 2
+                <input value={form.sideImage2} onChange={(e) => updateField("sideImage2", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
               </label>
               <label className="block text-sm">
-                Left Image
-                <input value={form.imageLeft} onChange={(e) => updateField("imageLeft", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
+                Product View 3
+                <input value={form.sideImage3} onChange={(e) => updateField("sideImage3", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
               </label>
               <label className="block text-sm">
-                Right Image
-                <input value={form.imageRight} onChange={(e) => updateField("imageRight", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Top Image
-                <input value={form.imageTop} onChange={(e) => updateField("imageTop", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Bottom Image
-                <input value={form.imageBottom} onChange={(e) => updateField("imageBottom", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Inside Image
-                <input value={form.imageInside} onChange={(e) => updateField("imageInside", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Zipper Image
-                <input value={form.imageZipper} onChange={(e) => updateField("imageZipper", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Strap Image
-                <input value={form.imageStrap} onChange={(e) => updateField("imageStrap", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
+                Product View 4
+                <input value={form.sideImage4} onChange={(e) => updateField("sideImage4", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
               </label>
               <label className="block text-sm">
                 Colour
@@ -446,7 +437,7 @@ export default function AdminProducts() {
             </div>
 
             <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={() => { setEditing(false); setForm(emptyForm); }} className="text-sm underline">Cancel</button>
+              <button type="button" onClick={() => { setEditing(false); setForm(emptyForm); setShowForm(false); }} className="text-sm underline">Cancel</button>
               <button type="submit" disabled={saving} className="h-10 bg-ink px-5 text-[11px] tracking-[0.16em] uppercase text-paper disabled:opacity-60">
                 {saving ? "Saving..." : editing ? "Update Product" : "Create Product"}
               </button>

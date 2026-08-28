@@ -1,4 +1,4 @@
-import { parseQty } from "@/lib/db/cart";
+import { parseQty, parseCartItems, replaceCustomerCart } from "@/lib/db/cart";
 import { prisma } from "@/lib/db/prisma";
 import { newId } from "@/lib/db/store";
 import { formatInr } from "@/lib/format";
@@ -8,6 +8,10 @@ import {
   getRazorpayKeyId,
   razorpayConfigured,
 } from "@/lib/payments/razorpay";
+import { hashPassword } from "@/lib/db/password";
+import { createCustomer, findCustomerByEmailOrPhone } from "@/lib/db/users";
+import { normalizePhone, isValidPhone } from "@/lib/auth/validate";
+import { validateCoupon } from "@/lib/db/coupons";
 
 export type PaymentSession = {
   keyId: string;
@@ -39,11 +43,14 @@ function payableFromOrderItems(
   );
 }
 
-async function sessionForOrder(order: {
-  id: string;
-  razorpayOrderId: string | null;
-  items: { qty: number; unitPrice: { toString(): string } | null }[];
-}): Promise<
+async function sessionForOrder(
+  order: {
+    id: string;
+    razorpayOrderId: string | null;
+    items: { qty: number; unitPrice: { toString(): string } | null }[];
+  },
+  amountPaiseOverride?: number,
+): Promise<
   | { ok: true; session: PaymentSession }
   | { ok: false; error: string; status: 400 | 503 }
 > {
@@ -53,13 +60,15 @@ async function sessionForOrder(order: {
   const payable = payableFromOrderItems(order.items);
   if (!payable.ok) return payable;
 
+  const amountPaise = amountPaiseOverride ?? payable.amountPaise;
+
   let razorpayOrderId = order.razorpayOrderId;
   if (!razorpayOrderId) {
     const created = await createRazorpayTestOrder({
-      amountPaise: payable.amountPaise,
+      amountPaise,
       receipt: order.id,
     });
-    if (created.amount !== payable.amountPaise) {
+    if (created.amount !== amountPaise) {
       return { ok: false, error: "Payments are not configured.", status: 503 };
     }
     razorpayOrderId = created.id;
@@ -74,14 +83,14 @@ async function sessionForOrder(order: {
     session: {
       keyId: getRazorpayKeyId(),
       razorpayOrderId,
-      amount: payable.amountPaise,
+      amount: amountPaise,
       currency: "INR",
       orderId: order.id,
     },
   };
 }
 
-export async function createCustomerPaymentOrder(userId: string, addressId: string) {
+export async function createCustomerPaymentOrder(userId: string, addressId: string, couponCode?: string) {
   if (!razorpayConfigured()) {
     return { ok: false as const, error: "Payments are not configured.", status: 503 as const };
   }
@@ -124,9 +133,6 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
         if (qty == null || qty !== item.qty || !item.product || item.product.sku !== item.sku || !item.product.b2cAvailable) {
           return { ok: false as const, error: "Your cart is empty.", status: 400 as const };
         }
-        // Pre-payment stock check: reject obviously insufficient stock before
-        // opening Razorpay Checkout. Null stock = unlimited; no check needed.
-        // The true atomic oversell guard is in the payment.captured webhook.
         if (item.product.stock !== null && item.product.stock < item.qty) {
           const available = item.product.stock;
           return {
@@ -149,15 +155,26 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
       );
       if (!payable.ok) return payable;
 
+      let couponId: string | undefined;
+      let amountPaise = payable.amountPaise;
+      if (couponCode) {
+        const couponResult = await validateCoupon(couponCode.toUpperCase(), userId, payable.amountRupees);
+        if (!couponResult.ok) {
+          return { ok: false as const, error: couponResult.error, status: 400 as const };
+        }
+        amountPaise = Math.round(couponResult.finalAmount * 100);
+        couponId = couponResult.coupon.id;
+      }
+
       if (pending && sameLines(pending.items, cartLines)) {
-        return sessionForOrder(pending);
+        return sessionForOrder(pending, amountPaise);
       }
 
       const created = await prisma.order.create({
         data: {
           id: `DND-${newId("ord").slice(-8).toUpperCase()}`,
           userId,
-          totalLabel: formatInr(payable.amountRupees),
+          totalLabel: formatInr(amountPaise / 100),
           paymentStatus: "PENDING",
           orderStatus: "PLACED",
           shipFullName: address.fullName,
@@ -168,6 +185,7 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
           shipState: address.state,
           shipPincode: address.pincode,
           shipLandmark: address.landmark,
+          couponId,
           items: {
             create: cartLines.map((item) => ({
               id: newId("oit"),
@@ -183,7 +201,7 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
         include: { items: true },
       });
 
-      const session = await sessionForOrder(created);
+      const session = await sessionForOrder(created, amountPaise);
       if (!session.ok) {
         await prisma.order.delete({ where: { id: created.id } }).catch(() => undefined);
         return session;
@@ -196,7 +214,7 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
     }
 
     if (pending) {
-      return sessionForOrder(pending);
+      return sessionForOrder(pending, couponCode ? Math.round((pending.items.reduce((sum, item) => sum + Number(item.unitPrice) * item.qty, 0)) * 100) : undefined);
     }
 
     return { ok: false as const, error: "Your cart is empty.", status: 400 as const };
@@ -208,4 +226,103 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
   } finally {
     await prisma.$executeRaw`SELECT pg_advisory_unlock(hashtext(${userId}))`;
   }
+}
+
+export async function createGuestPaymentOrder(
+  guestDetails: Record<string, unknown>,
+  items: unknown,
+  couponCode?: string,
+) {
+  if (!razorpayConfigured()) {
+    return { ok: false as const, error: "Payments are not configured.", status: 503 as const };
+  }
+
+  const fullName = String(guestDetails.fullName || "").trim();
+  const email = String(guestDetails.email || "").trim();
+  const phone = normalizePhone(String(guestDetails.phone || ""));
+  const line1 = String(guestDetails.line1 || "").trim();
+  const line2 = String(guestDetails.line2 || "").trim();
+  const city = String(guestDetails.city || "").trim();
+  const state = String(guestDetails.state || "").trim();
+  const pincode = String(guestDetails.pincode || "").trim();
+  const landmark = String(guestDetails.landmark || "").trim();
+
+  if (!fullName || fullName.length < 2) {
+    return { ok: false as const, error: "Please enter your full name.", status: 400 as const };
+  }
+  if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
+    return { ok: false as const, error: "Please enter a valid email address.", status: 400 as const };
+  }
+  if (!isValidPhone(phone)) {
+    return { ok: false as const, error: "Please enter a valid 10-digit mobile number.", status: 400 as const };
+  }
+  if (!line1 || line1.length < 4) {
+    return { ok: false as const, error: "Please enter address line 1.", status: 400 as const };
+  }
+  if (!city || !state) {
+    return { ok: false as const, error: "Please enter city and state.", status: 400 as const };
+  }
+  if (!/^\d{6}$/.test(pincode)) {
+    return { ok: false as const, error: "Please enter a valid 6-digit pincode.", status: 400 as const };
+  }
+
+  const cartLines = parseCartItems(items);
+  if (!cartLines.length) {
+    return { ok: false as const, error: "Your cart is empty.", status: 400 as const };
+  }
+
+  const products = await prisma.product.findMany({
+    where: { sku: { in: cartLines.map((i) => i.sku) } },
+  });
+  const productMap = new Map(products.map((p) => [p.sku, p]));
+
+  for (const item of cartLines) {
+    const product = productMap.get(item.sku);
+    if (!product || !product.b2cAvailable) {
+      return { ok: false as const, error: "Your cart contains unavailable items.", status: 400 as const };
+    }
+    if (product.stock !== null && product.stock < item.qty) {
+      const available = product.stock;
+      return {
+        ok: false as const,
+        error:
+          available === 0
+            ? `Sorry, "${product.name}" is out of stock.`
+            : `Sorry, "${product.name}" only has ${available} item(s) left in stock.`,
+        status: 400 as const,
+      };
+    }
+  }
+
+  const normalizedEmail = email.toLowerCase();
+  const existing = await findCustomerByEmailOrPhone(normalizedEmail, phone);
+  let userId: string;
+  if (existing) {
+    userId = existing.id;
+  } else {
+    const randomPassword = `guest_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const passwordHash = await hashPassword(randomPassword);
+    const user = await createCustomer({ fullName, email: normalizedEmail, phone, passwordHash });
+    userId = user.id;
+  }
+
+  const address = await prisma.address.create({
+    data: {
+      id: newId("adr"),
+      userId,
+      fullName,
+      phone,
+      line1,
+      line2,
+      city,
+      state,
+      pincode,
+      landmark,
+      isDefault: true,
+    },
+  });
+
+  await replaceCustomerCart(userId, cartLines.map((item) => ({ sku: item.sku, qty: item.qty })));
+
+  return createCustomerPaymentOrder(userId, address.id, couponCode);
 }

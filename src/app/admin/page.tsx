@@ -2,13 +2,12 @@
 
 import Link from "next/link";
 import { useEffect, useState } from "react";
-import { products } from "@/lib/products";
 import { useAuth } from "@/components/AuthProvider";
 
 export default function AdminHome() {
   const { logout } = useAuth();
   const [data, setData] = useState<{
-    counts: { customers: number; orders: number };
+    counts: { customers: number; orders: number; products: number };
     customers: { fullName: string; email: string; phone: string }[];
     orders: { id: string; orderStatus: string; createdAt: string }[];
   } | null>(null);
@@ -32,27 +31,30 @@ export default function AdminHome() {
       </div>
       <div className="mt-8 grid gap-4 sm:grid-cols-3">
         <div className="border border-ink/10 p-5">
-          <p className="text-xs uppercase tracking-[0.16em]">Customers</p>
-          <p className="mt-2 font-serif text-3xl">{data?.counts.customers ?? "—"}</p>
-        </div>
-        <div className="border border-ink/10 p-5">
           <p className="text-xs uppercase tracking-[0.16em]">Orders</p>
           <p className="mt-2 font-serif text-3xl">{data?.counts.orders ?? "—"}</p>
         </div>
         <div className="border border-ink/10 p-5">
-          <p className="text-xs uppercase tracking-[0.16em]">Catalogue styles</p>
-          <p className="mt-2 font-serif text-3xl">{products.length}</p>
+          <p className="text-xs uppercase tracking-[0.16em]">Customers</p>
+          <p className="mt-2 font-serif text-3xl">{data?.counts.customers ?? "—"}</p>
+        </div>
+        <div className="border border-ink/10 p-5">
+          <p className="text-xs uppercase tracking-[0.16em]">Products</p>
+          <p className="mt-2 font-serif text-3xl">{data?.counts.products ?? "—"}</p>
         </div>
       </div>
       <nav className="mt-10 flex flex-wrap gap-4 text-[11px] tracking-[0.16em] uppercase">
-        <Link href="/admin/customers" className="underline">
-          Customers
-        </Link>
         <Link href="/admin/orders" className="underline">
           Orders
         </Link>
         <Link href="/admin/products" className="underline">
           Products
+        </Link>
+        <Link href="/admin/reviews" className="underline">
+          Reviews
+        </Link>
+        <Link href="/admin/share-rewards" className="underline">
+          Share & Earn
         </Link>
       </nav>
     </div>

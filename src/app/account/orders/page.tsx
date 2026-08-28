@@ -1,25 +1,94 @@
 "use client";
 
-import Link from "next/link";
 import { useEffect, useState } from "react";
+import Link from "next/link";
+import { AssetImage } from "@/components/AssetImage";
+import { ReviewModal } from "@/components/review/ReviewModal";
 
 type Order = {
   id: string;
   createdAt: string;
-  items: { name: string; qty: number }[];
+  items: { name: string; qty: number; image: string; sku: string; reviewStatus?: string; reviewId?: string | null }[];
   totalLabel: string;
   paymentStatus: string;
   orderStatus: string;
 };
 
+type ReviewStatus = {
+  orderId: string;
+  items: { sku: string; name: string; qty: number; image: string; reviewStatus: string; reviewId: string | null }[];
+};
+
+const statusColor: Record<string, string> = {
+  PENDING: "bg-cream text-ink-soft",
+  PAID: "bg-camel/20 text-ink",
+  PLACED: "bg-ink/10 text-ink",
+  CANCELLED: "bg-red-50 text-red-800",
+};
+
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [reviewStatuses, setReviewStatuses] = useState<Map<string, ReviewStatus>>(new Map());
+  const [modalOrderId, setModalOrderId] = useState<string | null>(null);
+  const [modalProduct, setModalProduct] = useState<{ sku: string; name: string; reviewId?: string | null } | null>(null);
 
   useEffect(() => {
     void fetch("/api/customer/orders", { credentials: "include" })
       .then((r) => r.json())
-      .then((d: { orders: Order[] }) => setOrders(d.orders || []));
+      .then((d: { orders: Order[] }) => {
+        const ordersList = d.orders || [];
+        setOrders(ordersList);
+        const statuses = new Map<string, ReviewStatus>();
+        for (const order of ordersList) {
+          if (order.paymentStatus === "PAID") {
+            void fetch(`/api/customer/orders/${order.id}/reviews`, { credentials: "include" })
+              .then((r) => r.json())
+              .then((status: ReviewStatus) => {
+                statuses.set(status.orderId, status);
+                setReviewStatuses(new Map(statuses));
+              })
+              .catch(() => undefined);
+          }
+        }
+      });
   }, []);
+
+  function openReviewModal(orderId: string, sku: string, name: string, reviewId: string | null) {
+    setModalOrderId(orderId);
+    setModalProduct({ sku, name, reviewId });
+  }
+
+  function getReviewButton(order: Order, item: Order["items"][0]) {
+    const status = reviewStatuses.get(order.id)?.items.find((i) => i.sku === item.sku);
+    const reviewStatus = status?.reviewStatus || "NOT_REVIEWED";
+
+    if (reviewStatus === "APPROVED") {
+      return (
+        <button
+          type="button"
+          onClick={() => openReviewModal(order.id, item.sku, item.name, status?.reviewId || null)}
+          className="h-8 border border-ink px-3 text-[10px] tracking-[0.14em] uppercase hover:bg-cream"
+        >
+          Edit Review
+        </button>
+      );
+    }
+    if (reviewStatus === "PENDING") {
+      return <span className="text-xs text-ink-soft">Review pending</span>;
+    }
+    if (reviewStatus === "HIDDEN") {
+      return <span className="text-xs text-ink-soft">Review hidden</span>;
+    }
+    return (
+      <button
+        type="button"
+        onClick={() => openReviewModal(order.id, item.sku, item.name, null)}
+        className="h-8 bg-camel px-3 text-[10px] tracking-[0.14em] uppercase"
+      >
+        Write Review
+      </button>
+    );
+  }
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
@@ -27,19 +96,75 @@ export default function OrdersPage() {
       {orders.length === 0 ? (
         <p className="mt-8 text-sm text-ink-soft">No orders yet.</p>
       ) : (
-        <ul className="mt-8 divide-y divide-ink/10 border border-ink/10">
+        <ul className="mt-8 space-y-4">
           {orders.map((o) => (
-            <li key={o.id} className="p-4">
-              <Link href={`/account/orders/${o.id}`} className="font-serif text-xl underline-offset-4 hover:underline">
-                {o.id}
+            <li key={o.id} className="border border-ink/10 bg-paper">
+              <Link href={`/account/orders/${o.id}`} className="flex items-center justify-between border-b border-ink/5 px-4 py-3 hover:bg-cream">
+                <div>
+                  <p className="font-serif text-lg">{o.id}</p>
+                  <p className="text-xs text-ink-soft">{new Date(o.createdAt).toLocaleDateString("en-IN")}</p>
+                </div>
+                <span className={`text-[11px] tracking-[0.12em] uppercase ${statusColor[o.paymentStatus] || "bg-cream text-ink-soft"}`}>
+                  {o.paymentStatus}
+                </span>
               </Link>
-              <p className="mt-1 text-sm text-ink-soft">
-                {new Date(o.createdAt).toLocaleDateString("en-IN")} · {o.orderStatus} · {o.paymentStatus} · {o.totalLabel}
-              </p>
-              <p className="mt-1 text-sm">{o.items.map((i) => `${i.name} × ${i.qty}`).join(", ")}</p>
+              <div className="px-4 py-3">
+                {o.items.map((i) => {
+                  const status = reviewStatuses.get(o.id)?.items.find((s) => s.sku === i.sku);
+                  return (
+                    <div key={i.sku} className="flex items-center gap-3 py-2">
+                      <div className="relative aspect-square w-10 shrink-0 overflow-hidden bg-cream">
+                        <AssetImage src={i.image} alt={i.name} fill className="object-cover object-center" sizes="40px" />
+                      </div>
+                      <div className="flex-1 text-sm">
+                        <p className="line-clamp-1">{i.name}</p>
+                        <p className="text-xs text-ink-soft">Qty: {i.qty}</p>
+                      </div>
+                      {o.paymentStatus === "PAID" && (
+                        <div className="shrink-0">{getReviewButton(o, i)}</div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="flex items-center justify-between border-t border-ink/5 px-4 py-3 text-sm">
+                <span className="text-ink-soft">{o.orderStatus}</span>
+                <span className="font-medium">{o.totalLabel}</span>
+              </div>
             </li>
           ))}
         </ul>
+      )}
+
+      {modalOrderId && modalProduct && (
+        <ReviewModal
+          productSku={modalProduct.sku}
+          productName={modalProduct.name}
+          orderId={modalOrderId}
+          existingReview={modalProduct.reviewId ? { id: modalProduct.reviewId, rating: 0, title: "", comment: "", status: "PENDING" } : null}
+          onClose={() => {
+            setModalOrderId(null);
+            setModalProduct(null);
+          }}
+          onSuccess={() => {
+            setModalOrderId(null);
+            setModalProduct(null);
+            for (const order of orders) {
+              if (order.id === modalOrderId) {
+                void fetch(`/api/customer/orders/${order.id}/reviews`, { credentials: "include" })
+                  .then((r) => r.json())
+                  .then((status: ReviewStatus) => {
+                    setReviewStatuses((prev) => {
+                      const next = new Map(prev);
+                      next.set(status.orderId, status);
+                      return next;
+                    });
+                  })
+                  .catch(() => undefined);
+              }
+            }
+          }}
+        />
       )}
     </div>
   );

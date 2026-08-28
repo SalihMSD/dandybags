@@ -1,10 +1,44 @@
 import Link from "next/link";
+import type { Metadata } from "next";
 import { AssetImage } from "@/components/AssetImage";
 import { CategoryCard } from "@/components/CategoryCard";
+import { HeroCarousel } from "@/components/HeroCarousel";
 import { ProductRail } from "@/components/ProductRail";
 import { categories } from "@/lib/categories";
-import { featuredProducts, productsByCategory } from "@/lib/products";
+import { listFeaturedProducts, listNewArrivals, type Product } from "@/lib/db/products";
 import { site } from "@/lib/site";
+
+export const metadata: Metadata = {
+  title: "DANDY — Bags for every journey",
+  description: site.description,
+  alternates: { canonical: "/" },
+  openGraph: {
+    title: "DANDY — Bags for every journey",
+    description: site.description,
+    url: "/",
+    siteName: "DANDY",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DANDY — Bags for every journey",
+    description: site.description,
+  },
+};
+
+const jsonLd = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: site.name,
+  description: site.description,
+  url: "https://dandy-bags-staging.vercel.app",
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: "+91-90252-66485",
+    contactType: "customer service",
+    areaServed: "IN",
+    availableLanguage: ["English", "Tamil"],
+  },
+};
 
 const journeys = [
   { title: "School", line: "Made for the everyday route to class.", href: "/categories/school-bags" },
@@ -12,60 +46,28 @@ const journeys = [
   { title: "Travel", line: "Packed for weekends and longer roads.", href: "/categories/travel-bags" },
 ];
 
-export default function HomePage() {
-  const featured = featuredProducts();
-  const arrivals = categories
-    .map((c) => productsByCategory(c.slug).find((p) => !p.featured))
-    .filter((p): p is NonNullable<typeof p> => Boolean(p));
+export default async function HomePage() {
+  let featured: Product[] = [];
+  let arrivals: Product[] = [];
+
+  try {
+    const results = await Promise.all([
+      listFeaturedProducts(8),
+      listNewArrivals(8),
+    ]);
+    featured = results[0];
+    arrivals = results[1];
+  } catch {
+    featured = [];
+    arrivals = [];
+  }
+
   const marquee = [...categories, ...categories].map((c) => c.name);
 
   return (
     <div>
-      <section className="relative overflow-hidden bg-cream">
-        <div className="mx-auto grid min-h-[78vh] max-w-7xl items-center gap-8 px-4 py-12 sm:px-6 md:grid-cols-2 md:gap-12 md:px-8 md:py-16">
-          <div className="min-w-0">
-            <p className="text-[11px] tracking-[0.32em] text-ink-soft uppercase">{site.tagline}</p>
-            <h1 className="mt-6 font-serif text-[clamp(3.2rem,11vw,7.5rem)] leading-[0.88] tracking-tight text-ink">
-              Bags for
-              <br />
-              <span className="italic">every journey</span>
-            </h1>
-            <p className="mt-8 max-w-md text-[15px] leading-relaxed text-ink-soft md:text-lg">
-              {site.heroSupport}
-            </p>
-            <div className="mt-10 flex flex-col gap-3 sm:flex-row sm:items-center">
-              <Link
-                href="/shop"
-                className="bg-camel px-8 py-4 text-center text-[12px] tracking-[0.22em] text-ink uppercase"
-              >
-                Shop now
-              </Link>
-              <Link
-                href="/categories"
-                className="border border-ink px-8 py-4 text-center text-[12px] tracking-[0.22em] uppercase hover:bg-ink hover:text-paper"
-              >
-                Explore collection
-              </Link>
-            </div>
-            <Link
-              href="/wholesale"
-              className="mt-6 inline-block text-[11px] tracking-[0.2em] uppercase underline underline-offset-8"
-            >
-              Become a business partner
-            </Link>
-          </div>
-          <div className="relative mx-auto aspect-[4/5] w-full max-w-md overflow-hidden bg-cream-dark md:max-w-none">
-            <AssetImage
-              src="/products/dummy/hero-collection.png"
-              alt="DANDY collection — school, college, backpack, travel, sling, handbag and ladies purse"
-              fill
-              priority
-              className="object-cover object-[center_40%]"
-              sizes="(max-width: 768px) 90vw, 480px"
-            />
-          </div>
-        </div>
-      </section>
+      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <HeroCarousel />
 
       <div className="marquee bg-paper" aria-hidden>
         <div className="marquee-track text-[12px] tracking-[0.28em] text-ink-soft uppercase">
@@ -93,8 +95,35 @@ export default function HomePage() {
       </nav>
 
       <p className="bg-cream px-4 py-3 text-center text-[11px] tracking-[0.16em] text-ink-soft uppercase">
-        Placeholder photos until the product shoot — your images will replace these
+        Explore thoughtfully designed bags for school, college, travel and everyday life.
       </p>
+
+      <section className="animate-slide-up border-b border-ink/10 bg-paper">
+        <div className="mx-auto max-w-7xl px-4 py-12 sm:py-16 md:px-8">
+          <div className="mx-auto max-w-2xl text-center">
+            <p className="text-[11px] tracking-[0.28em] text-ink-soft uppercase">Share & Earn</p>
+            <h2 className="mt-3 font-serif text-3xl sm:text-4xl md:text-5xl">
+              Share your Dandy Bag &amp; earn rewards
+            </h2>
+            <p className="mt-4 text-sm leading-relaxed text-ink-soft sm:text-base">
+              Post your Dandy Bag on Instagram and tag <strong>@dandybagsonline.in</strong>.
+              <br />
+              Story for 24 hours → Earn <strong>5% of your paid bill</strong> as a coupon.
+              <br />
+              Story + Post → Earn <strong>10% of your paid bill</strong> as a coupon.
+            </p>
+            <p className="mt-2 text-xs text-ink-soft">
+              Tagging <strong>@dandybagsonline.in</strong> is required.
+            </p>
+            <Link
+              href="/account/share-rewards"
+              className="mt-8 inline-block h-12 bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase transition-transform duration-200 hover:scale-105"
+            >
+              Share & Earn
+            </Link>
+          </div>
+        </div>
+      </section>
 
       <div className="bg-paper">
         <ProductRail
@@ -182,6 +211,17 @@ export default function HomePage() {
               Business enquiry
             </Link>
           </div>
+        </div>
+      </section>
+
+      <section className="border-t border-ink/10 bg-cream">
+        <div className="mx-auto max-w-7xl px-4 py-8 text-center md:px-8">
+          <Link
+            href="/wholesale"
+            className="inline-block text-[11px] tracking-[0.2em] uppercase underline underline-offset-8"
+          >
+            Become a business partner
+          </Link>
         </div>
       </section>
     </div>

@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 export const metadata: Metadata = {
   title: "Manufacturing",
   description: "DANDY manufacturing — product development, stitching, finishing, quality checking and packing in Tamil Nadu.",
+  alternates: { canonical: "/manufacturing" },
 };
 
 const steps = [

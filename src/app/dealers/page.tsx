@@ -5,6 +5,7 @@ import { dealers } from "@/lib/products";
 export const metadata: Metadata = {
   title: "Dealer network",
   description: "DANDY dealer and retail partners. Listings are published only with permission.",
+  alternates: { canonical: "/dealers" },
 };
 
 export default function DealersPage() {

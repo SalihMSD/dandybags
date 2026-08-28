@@ -5,6 +5,7 @@ import { site } from "@/lib/site";
 export const metadata: Metadata = {
   title: "About DANDY",
   description: "DANDY is a bag brand in Karur, Tamil Nadu — originally based in Erode — offering school, college, travel and everyday bags.",
+  alternates: { canonical: "/about" },
 };
 
 export default function AboutPage() {

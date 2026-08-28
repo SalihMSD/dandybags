@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { type Product } from "@/lib/products";
+import { type Product } from "@/lib/db/products";
 import { ProductCard } from "./ProductCard";
 
 export function ProductRail({

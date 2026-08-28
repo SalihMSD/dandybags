@@ -1,8 +1,17 @@
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { requireAdmin } from "@/lib/auth/session";
 import { getAdminProduct, updateAdminProduct, deleteAdminProduct, findProductBySku, findProductBySlug } from "@/lib/db/admin-products";
+import { revalidatePath } from "next/cache";
 
 export const runtime = "nodejs";
+
+async function revalidateProductPaths(category?: string, slug?: string) {
+  revalidatePath("/");
+  revalidatePath("/shop");
+  revalidatePath("/categories");
+  if (category) revalidatePath(`/categories/${category}`);
+  if (slug) revalidatePath(`/shop/${slug}`);
+}
 
 type Ctx = { params: Promise<{ id: string }> };
 
@@ -48,6 +57,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   const subcategory = body.subcategory !== undefined ? String(body.subcategory).trim() : undefined;
   const sellingPrice = body.sellingPrice !== undefined && body.sellingPrice !== null && body.sellingPrice !== "" ? Number(body.sellingPrice) : undefined;
   const mrp = body.mrp !== undefined && body.mrp !== null && body.mrp !== "" ? Number(body.mrp) : undefined;
+  const discountPercent = body.discountPercent !== undefined && body.discountPercent !== null && body.discountPercent !== "" ? Number(body.discountPercent) : undefined;
   const stock = body.stock !== undefined && body.stock !== null && body.stock !== "" ? Number(body.stock) : undefined;
   const b2cAvailable = body.b2cAvailable !== undefined ? body.b2cAvailable === true || body.b2cAvailable === "true" : undefined;
   const featured = body.featured !== undefined ? body.featured === true || body.featured === "true" : undefined;
@@ -65,7 +75,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   const seoDescription = body.seoDescription !== undefined ? String(body.seoDescription).trim() : undefined;
 
   const imageFront = body.imageFront !== undefined ? String(body.imageFront).trim() : undefined;
-  const imageBack = body.imageBack !== undefined ? (body.imageFront ? String(body.imageBack).trim() : null) : undefined;
+  const imageBack = body.imageBack !== undefined ? (body.imageBack ? String(body.imageBack).trim() : null) : undefined;
   const imageLeft = body.imageLeft !== undefined ? (body.imageLeft ? String(body.imageLeft).trim() : null) : undefined;
   const imageRight = body.imageRight !== undefined ? (body.imageRight ? String(body.imageRight).trim() : null) : undefined;
   const imageTop = body.imageTop !== undefined ? (body.imageTop ? String(body.imageTop).trim() : null) : undefined;
@@ -93,6 +103,7 @@ export async function PATCH(request: Request, ctx: Ctx) {
   if (subcategory !== undefined) data.subcategory = subcategory;
   if (sellingPrice !== undefined) data.sellingPrice = sellingPrice;
   if (mrp !== undefined) data.mrp = mrp;
+  if (discountPercent !== undefined) data.discountPercent = discountPercent;
   if (stock !== undefined) data.stock = stock;
   if (b2cAvailable !== undefined) data.b2cAvailable = b2cAvailable;
   if (featured !== undefined) data.featured = featured;
@@ -121,6 +132,11 @@ export async function PATCH(request: Request, ctx: Ctx) {
 
   try {
     const product = await updateAdminProduct(id, data);
+    try {
+      await revalidateProductPaths(product.category, product.slug);
+    } catch {
+      // Cache revalidation is best-effort; do not fail the request.
+    }
     return Response.json({ product });
   } catch (error) {
     console.error("Failed to update product:", error);
@@ -136,9 +152,19 @@ export async function DELETE(_request: Request, ctx: Ctx) {
   }
   const { id } = await ctx.params;
   try {
-    const product = await deleteAdminProduct(id);
-    return Response.json({ product });
-  } catch {
-    return jsonError("Something went wrong. Please try again.", 500);
+    const existing = await getAdminProduct(id);
+    if (!existing) return jsonError("Product not found.", 404);
+
+    await deleteAdminProduct(id);
+    try {
+      await revalidateProductPaths(existing.category, existing.slug);
+    } catch {
+      // Cache revalidation is best-effort; do not fail the request.
+    }
+    return Response.json({ product: existing });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+    const status = message.includes("wishlist") || message.includes("cart") ? 409 : 500;
+    return jsonError(message, status);
   }
 }

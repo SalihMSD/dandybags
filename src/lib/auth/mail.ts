@@ -66,3 +66,28 @@ export async function sendResetEmail(user: { fullName: string; email: string }, 
   );
   return url;
 }
+
+export async function sendOrderConfirmation(input: {
+  to: string;
+  orderId: string;
+  paymentStatus: string;
+  totalLabel: string;
+  items: { name: string; qty: number }[];
+  shippingAddress: {
+    fullName: string;
+    phone: string;
+    line1: string;
+    line2: string;
+    city: string;
+    state: string;
+    pincode: string;
+  };
+  trackingUrl?: string;
+}) {
+  const itemLines = input.items.map((i) => `  - ${i.name} x${i.qty}`).join("\n");
+  const text = `Hello ${input.shippingAddress.fullName},\n\nYour DANDY order has been placed.\n\nOrder ID: ${input.orderId}\nPayment: ${input.paymentStatus}\nTotal: ${input.totalLabel}\n\nItems:\n${itemLines}\n\nDelivery to:\n${input.shippingAddress.fullName}\n${input.shippingAddress.line1}${input.shippingAddress.line2 ? ", " + input.shippingAddress.line2 : ""}\n${input.shippingAddress.city}, ${input.shippingAddress.state} ${input.shippingAddress.pincode}\nPhone: ${input.shippingAddress.phone}\n${
+    input.trackingUrl ? `\nTrack your order:\n${input.trackingUrl}\n` : "\nTracking updates will be shared once dispatched.\n"
+  }\nBAGS FOR EVERY JOURNEY`;
+
+  await deliverMail(`Order confirmation ${input.orderId}`, input.to, text);
+}

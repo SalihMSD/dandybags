@@ -2,7 +2,19 @@
 
 import { useState } from "react";
 import { AssetImage } from "./AssetImage";
-import { galleryImages, type Product } from "@/lib/products";
+import { type Product } from "@/lib/db/products";
+
+function galleryImages(product: Product) {
+  const ordered = [
+    { key: "Master Image", src: product.images.master },
+    { key: "View 1", src: product.images.side1 },
+    { key: "View 2", src: product.images.side2 },
+    { key: "View 3", src: product.images.side3 },
+    { key: "View 4", src: product.images.side4 },
+  ].filter((img) => Boolean(img.src));
+
+  return ordered;
+}
 
 export function ProductGallery({ product }: { product: Product }) {
   const images = galleryImages(product);
@@ -30,7 +42,9 @@ export function ProductGallery({ product }: { product: Product }) {
               key={img.key}
               type="button"
               onClick={() => setActive(i)}
-              className={`relative aspect-[4/5] border ${i === active ? "border-ink" : "border-ink/10"}`}
+              className={`relative aspect-[4/5] border transition-all duration-200 ${
+                i === active ? "border-ink scale-[1.02]" : "border-ink/10 hover:border-ink/40"
+              }`}
             >
               <AssetImage
                 src={img.src}

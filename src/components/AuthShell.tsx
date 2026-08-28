@@ -44,7 +44,7 @@ export function AuthLinks() {
   return (
     <p className="mt-8 text-center text-xs text-ink-soft">
       <Link href="/" className="underline underline-offset-4">
-        Back to DANDY
+        Back to Home
       </Link>
     </p>
   );

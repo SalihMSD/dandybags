@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Privacy policy" };
+export const metadata: Metadata = {
+  title: "Privacy policy",
+  description: "DANDY privacy policy — how we collect, use and protect your personal information.",
+  alternates: { canonical: "/privacy" },
+};
 
 export default function Page() {
   return (
@@ -9,7 +13,7 @@ export default function Page() {
       <p className="mt-6 text-sm leading-relaxed text-ink-soft">
         We collect enquiry details you submit (name, company, phone, email, city) to respond to
         business and product requests. We do not sell this information. A fuller policy will be
-        published before payment processing is enabled. Contact: msdsalih1210@gmail.com
+        published before payment processing is enabled. Contact: dandybagsofficial@gmail.com
       </p>
     </div>
   );

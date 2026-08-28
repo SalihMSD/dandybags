@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { categories, type CategorySlug } from "@/lib/categories";
-import { type Product } from "@/lib/products";
+import { type Product } from "@/lib/db/products";
 import { ProductCard } from "./ProductCard";
 
 type Sort = "featured" | "newest" | "price-asc" | "price-desc";

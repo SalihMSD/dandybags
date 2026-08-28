@@ -1,9 +1,9 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Outfit } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
+import { CartFloatingButton } from "@/components/CartFloatingButton";
 import { Footer } from "@/components/Footer";
 import { Header } from "@/components/Header";
-import { WhatsAppButton } from "@/components/WhatsAppButton";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -30,7 +30,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL("https://salihmsd.github.io/dandybags"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://dandy-bags-staging.vercel.app"),
   title: {
     default: "DANDY — Bags for every journey | Bag shop Karur",
     template: "%s | DANDY",
@@ -50,11 +50,32 @@ export const metadata: Metadata = {
     "Ladies purses",
     "Wholesale bags Tamil Nadu",
   ],
+  alternates: {
+    canonical: "/",
+  },
   openGraph: {
     title: "DANDY — Bags for every journey",
     description: site.description,
     locale: "en_IN",
     type: "website",
+    url: "/",
+    siteName: "DANDY",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "DANDY — Bags for every journey",
+    description: site.description,
+  },
+  robots: {
+    index: true,
+    follow: true,
+    googleBot: {
+      index: true,
+      follow: true,
+      "max-video-preview": -1,
+      "max-image-preview": "large",
+      "max-snippet": -1,
+    },
   },
   icons: {
     icon: `${process.env.NEXT_PUBLIC_BASE_PATH || ""}/favicon.png`,
@@ -70,7 +91,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
           <Header />
           <main className="min-w-0">{children}</main>
           <Footer />
-          <WhatsAppButton />
+          <CartFloatingButton />
         </AuthProvider>
       </body>
     </html>

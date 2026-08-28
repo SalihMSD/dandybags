@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Returns" };
+export const metadata: Metadata = {
+  title: "Returns & exchanges",
+  description: "DANDY returns and exchange policy — how to return or exchange bags purchased from DANDY.",
+  alternates: { canonical: "/returns" },
+};
 
 export default function Page() {
   return (

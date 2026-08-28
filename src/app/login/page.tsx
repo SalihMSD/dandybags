@@ -50,8 +50,13 @@ function LoginForm() {
     }
     setPending(false);
     await refresh();
-    const next = params.get("next") || "/account";
-    router.push(next.startsWith("/") ? next : "/account");
+    const next = params.get("next") || "/";
+    const target = next.startsWith("/") ? next : "/";
+    if (target === "/") {
+      window.location.href = "/";
+    } else {
+      router.push(target);
+    }
   }
 
   return (
@@ -87,11 +92,6 @@ function LoginForm() {
           Create Account
         </Link>
       </div>
-      <p className="mt-4 text-center text-sm">
-        <Link href="/admin/login" className="underline underline-offset-4">
-          Admin login
-        </Link>
-      </p>
       <AuthLinks />
     </AuthShell>
   );

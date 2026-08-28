@@ -3,7 +3,7 @@ import { publicOrder } from "@/lib/db/orders";
 import { publicUser } from "@/lib/db/store";
 
 export async function getAdminOverview() {
-  const [customerRows, orders, addressCount] = await Promise.all([
+  const [customerRows, orders, addressCount, productCount] = await Promise.all([
     prisma.user.findMany({
       where: { role: "CUSTOMER" },
       orderBy: { createdAt: "desc" },
@@ -13,6 +13,7 @@ export async function getAdminOverview() {
       orderBy: { createdAt: "desc" },
     }),
     prisma.address.count(),
+    prisma.product.count(),
   ]);
 
   const customers = customerRows.map(publicUser);
@@ -23,6 +24,7 @@ export async function getAdminOverview() {
       customers: customers.length,
       orders: orders.length,
       addresses: addressCount,
+      products: productCount,
     },
   };
 }

@@ -29,7 +29,6 @@ export async function middleware(request: NextRequest) {
 
   const customerProtected =
     pathname.startsWith("/account") ||
-    pathname.startsWith("/checkout") ||
     pathname === "/wishlist";
 
   if (customerProtected) {
@@ -72,5 +71,5 @@ export async function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/account/:path*", "/checkout/:path*", "/wishlist", "/admin/:path*", "/login", "/register"],
+  matcher: ["/account/:path*", "/wishlist", "/admin/:path*", "/login", "/register"],
 };

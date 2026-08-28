@@ -6,7 +6,7 @@
     "dev": "next dev --turbopack",
     "build": "next build",
     "start": "next start",
-    "lint": "next lint",
+    "lint": "eslint .",
     "prisma:generate": "prisma generate",
     "prisma:migrate": "node scripts/prisma-with-local-env.cjs migrate deploy",
     "prisma:status": "node scripts/prisma-with-local-env.cjs migrate status",

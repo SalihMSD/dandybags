@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "FAQ" };
+export const metadata: Metadata = {
+  title: "FAQ",
+  description: "Frequently asked questions about DANDY bags — what we sell, where we are based, wholesale and retail.",
+  alternates: { canonical: "/faq" },
+};
 
 const faqs = [
   {

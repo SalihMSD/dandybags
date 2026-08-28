@@ -3,8 +3,9 @@ generator client {
 }
 
 datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 enum Role {
@@ -36,6 +37,35 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum ReviewStatus {
+  PENDING
+  APPROVED
+  HIDDEN
+}
+
+enum CouponDiscountType {
+  PERCENTAGE
+  FIXED
+}
+
+enum CouponStatus {
+  ACTIVE
+  USED
+  EXPIRED
+  CANCELLED
+}
+
+enum ShareRewardType {
+  STORY_5
+  STORY_AND_POST_10
+}
+
+enum ShareRewardStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
 model User {
   id            String        @id
   fullName      String
@@ -55,6 +85,10 @@ model User {
   orders    Order[]
   sessions  Session[]
   tokens    AuthToken[]
+  reviews   Review[]
+  helpfulVotes ReviewHelpful[]
+  coupons   Coupon[]
+  shareRewards ShareReward[]
 
   @@index([role])
   @@map("users")
@@ -135,6 +169,8 @@ model Order {
   deliveredAt      DateTime?
   razorpayOrderId    String?  @unique
   razorpayPaymentId  String?
+  couponId           String?
+  coupon             Coupon?  @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items         OrderItem[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
@@ -214,6 +250,7 @@ model Product {
   features       String[]
   mrp            Decimal? @db.Decimal(10, 2)
   sellingPrice   Decimal? @db.Decimal(10, 2)
+  discountPercent Int      @default(0)
   stock          Int?
   b2cAvailable   Boolean  @default(true)
   featured       Boolean  @default(false)
@@ -224,8 +261,100 @@ model Product {
   updatedAt      DateTime @updatedAt
   cartItems      CartItem[]
   wishlist       Wishlist[]
+  reviews        Review[]
 
   @@index([category])
   @@index([featured])
   @@map("products")
+}
+
+model Review {
+  id               String        @id
+  productSku       String
+  product          Product       @relation(fields: [productSku], references: [sku], onDelete: Cascade)
+  userId           String
+  user             User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rating           Int
+  title            String
+  comment          String
+  verifiedPurchase Boolean      @default(false)
+  status           ReviewStatus  @default(PENDING)
+  helpfulCount     Int           @default(0)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+  helpfulVotes     ReviewHelpful[]
+
+  @@unique([productSku, userId])
+  @@index([productSku, status, createdAt])
+  @@index([userId])
+  @@map("reviews")
+}
+
+model ReviewHelpful {
+  id        String   @id
+  reviewId  String
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, userId])
+  @@index([reviewId])
+  @@map("review_helpful")
+}
+
+model Coupon {
+  id                 String        @id
+  code               String        @unique
+  discountType       CouponDiscountType
+  discountValue      Decimal       @db.Decimal(10, 2)
+  minimumOrderValue  Decimal?      @db.Decimal(10, 2)
+  maximumDiscount    Decimal?      @db.Decimal(10, 2)
+  usageLimit         Int
+  usedCount          Int           @default(0)
+  validFrom          DateTime
+  validUntil         DateTime
+  isActive           Boolean       @default(true)
+  userId             String?
+  user               User?         @relation(fields: [userId], references: [id], onDelete: SetNull)
+  status             CouponStatus  @default(ACTIVE)
+  usedAt             DateTime?
+  shareReward        ShareReward?
+  orders             Order[]
+  sourceOrderId      String?
+  sourceBillAmount   Decimal?      @db.Decimal(10, 2)
+  rewardPercentage   Int?
+  createdAt          DateTime      @default(now())
+  updatedAt          DateTime      @updatedAt
+
+  @@index([code])
+  @@index([userId])
+  @@index([status])
+  @@map("coupons")
+}
+
+model ShareReward {
+  id                String            @id
+  userId            String
+  user              User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  orderId           String
+  rewardType        ShareRewardType
+  status            ShareRewardStatus @default(PENDING)
+  storyProofUrl     String?
+  postProofUrl      String?
+  instagramUsername String
+  taggedAccount     String            @default("@dandybagsonline.in")
+  submittedAt       DateTime          @default(now())
+  reviewedAt        DateTime?
+  reviewedBy        String?
+  couponId          String?           @unique
+  coupon            Coupon?           @relation(fields: [couponId], references: [id], onDelete: SetNull)
+  rejectionReason   String?
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  @@index([userId])
+  @@index([orderId])
+  @@index([status])
+  @@map("share_rewards")
 }

@@ -1,4 +1,4 @@
-import { type Product } from "./products";
+import { type Product } from "./db/products";
 
 export type CartLine = {
   sku: string;
@@ -6,6 +6,7 @@ export type CartLine = {
   name: string;
   qty: number;
   image: string;
+  sellingPrice: number | null;
 };
 
 const KEY = "dandy-cart";
@@ -35,7 +36,8 @@ export function addToCart(product: Product, qty = 1) {
       slug: product.slug,
       name: product.name,
       qty,
-      image: product.images.front,
+      image: product.images.master,
+      sellingPrice: product.sellingPrice,
     });
   writeCart(lines);
 }

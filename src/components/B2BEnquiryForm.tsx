@@ -35,7 +35,7 @@ export function B2BEnquiryForm() {
         (k) => `${k}: ${String(data.get(k) || "")}`,
       ),
     ].join("\n");
-    window.location.href = `mailto:msdsalih1210@gmail.com?subject=${encodeURIComponent("DANDY business enquiry")}&body=${encodeURIComponent(body)}`;
+    window.location.href = `mailto:dandybagsofficial@gmail.com?subject=${encodeURIComponent("DANDY business enquiry")}&body=${encodeURIComponent(body)}`;
     setSent(true);
   }
 

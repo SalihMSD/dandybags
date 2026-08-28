@@ -4,15 +4,18 @@ import { AssetImage } from "@/components/AssetImage";
 import { Logo } from "@/components/Logo";
 import { PrintButton } from "@/components/PrintButton";
 import { categories } from "@/lib/categories";
-import { products } from "@/lib/products";
+import { listPublicProducts } from "@/lib/db/products";
 import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Catalogue",
   description: "Download the DANDY bag catalogue for dealers, distributors and organized retail buyers.",
+  alternates: { canonical: "/catalogue" },
 };
 
-export default function CataloguePage() {
+export default async function CataloguePage() {
+  const { products } = await listPublicProducts({ pageSize: 100, sort: "newest" });
+
   return (
     <div className="mx-auto max-w-5xl px-4 py-10 sm:py-16 md:px-8">
       <div className="flex flex-wrap items-end justify-between gap-4">
@@ -51,7 +54,7 @@ export default function CataloguePage() {
                   className="grid grid-cols-[80px_1fr] gap-4 p-4 hover:bg-cream sm:grid-cols-[96px_1fr_1fr]"
                 >
                   <div className="relative aspect-[4/5] w-20 overflow-hidden bg-cream sm:w-24">
-                    <AssetImage src={p.images.front} alt={p.name} fill className="object-cover object-center" sizes="96px" />
+                    <AssetImage src={p.images.master} alt={p.name} fill className="object-cover object-center" sizes="96px" />
                   </div>
                   <div>
                     <p className="font-serif text-lg">{p.name}</p>

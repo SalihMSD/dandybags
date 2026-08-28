@@ -1,6 +1,10 @@
 import type { Metadata } from "next";
 
-export const metadata: Metadata = { title: "Terms" };
+export const metadata: Metadata = {
+  title: "Terms & conditions",
+  description: "DANDY terms of sale, pricing policy and business terms for Karur, Tamil Nadu.",
+  alternates: { canonical: "/terms" },
+};
 
 export default function Page() {
   return (

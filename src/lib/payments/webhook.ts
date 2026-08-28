@@ -108,7 +108,7 @@ export async function processWebhookEvent(payload: unknown): Promise<WebhookResu
         // Re-read order WITH items inside the locked transaction.
         const order = await tx.order.findFirst({
           where: { razorpayOrderId },
-          include: { items: { select: { sku: true, qty: true } } },
+          include: { items: { select: { sku: true, qty: true } }, coupon: { select: { id: true } } },
         });
 
         if (!order) return "skipped_unknown_order";
@@ -153,6 +153,17 @@ export async function processWebhookEvent(payload: unknown): Promise<WebhookResu
               : {}),
           },
         });
+
+        if (updated.count > 0 && order.couponId) {
+          await tx.coupon.update({
+            where: { id: order.couponId },
+            data: {
+              usedCount: { increment: 1 },
+              usedAt: new Date(),
+              status: "USED",
+            },
+          });
+        }
 
         return updated.count > 0 ? "marked_paid" : "already_paid";
       });

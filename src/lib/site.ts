@@ -8,9 +8,9 @@ export const site = {
     "Explore thoughtfully designed bags for school, college, travel and everyday life.",
   contact: {
     name: "Muhammad Salih A M",
-    phone: "9025266485",
-    phoneDisplay: "+91 90252 66485",
-    email: "msdsalih1210@gmail.com",
+    phone: "9047633332",
+    phoneDisplay: "+91 90476 33332",
+    email: "dandybagsofficial@gmail.com",
     city: "Karur",
     state: "Tamil Nadu",
     pincode: "639002",
@@ -18,8 +18,8 @@ export const site = {
     gstin: "33AHUPU9367K1Z7",
     previousLocation: "Erode, Tamil Nadu",
   },
-  whatsapp: process.env.NEXT_PUBLIC_WHATSAPP || "919025266485",
-  instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "",
+  whatsapp: process.env.NEXT_PUBLIC_WHATSAPP || "919047633332",
+  instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "https://www.instagram.com/dandybagsonline.in/",
   facebook: process.env.NEXT_PUBLIC_FACEBOOK || "",
 } as const;
 

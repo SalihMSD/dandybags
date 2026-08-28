@@ -15,12 +15,21 @@ export default function CartPage() {
     return () => window.removeEventListener("dandy-cart", sync);
   }, []);
 
+  function updateQty(sku: string, delta: number) {
+    const current = lines.find((l) => l.sku === sku);
+    const next = current ? current.qty + delta : 1;
+    if (next <= 0) {
+      setQty(sku, 0);
+    } else {
+      setQty(sku, next);
+    }
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
       <h1 className="font-serif text-4xl sm:text-5xl">Cart</h1>
       <p className="mt-3 text-sm text-ink-soft">
-        Checkout and payment will be connected in a later phase. You can still save bags here and
-        enquire on WhatsApp.
+        Review your items and proceed to checkout.
       </p>
       {lines.length === 0 ? (
         <p className="mt-10 text-sm">
@@ -42,13 +51,25 @@ export default function CartPage() {
                 </Link>
                 <p className="text-xs text-ink-soft">{l.sku}</p>
               </div>
-              <input
-                type="number"
-                min={0}
-                value={l.qty}
-                onChange={(e) => setQty(l.sku, Number(e.target.value))}
-                className="w-16 border border-ink/15 px-2 py-1 text-sm"
-              />
+              <div className="flex items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => updateQty(l.sku, -1)}
+                  className="flex h-9 w-9 items-center justify-center border border-ink/15 text-lg leading-none hover:bg-cream"
+                  aria-label={`Decrease quantity of ${l.name}`}
+                >
+                  −
+                </button>
+                <span className="w-6 text-center text-sm">{l.qty}</span>
+                <button
+                  type="button"
+                  onClick={() => updateQty(l.sku, 1)}
+                  className="flex h-9 w-9 items-center justify-center border border-ink/15 text-lg leading-none hover:bg-cream"
+                  aria-label={`Increase quantity of ${l.name}`}
+                >
+                  +
+                </button>
+              </div>
             </li>
           ))}
         </ul>
