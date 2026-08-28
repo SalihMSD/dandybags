@@ -83,7 +83,7 @@ export default function MyCouponsPage() {
                       <div>
                         <p className="text-lg font-medium">🎁 {coupon.code}</p>
                         <p className="mt-1 text-sm text-ink-soft">
-                          {coupon.discountType === "FIXED_AMOUNT"
+                          {coupon.discountType === "FIXED"
                             ? `${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(coupon.discountValue)} OFF`
                             : `${coupon.discountValue}% OFF`}
                         </p>
@@ -123,7 +123,7 @@ export default function MyCouponsPage() {
                       <div>
                         <p className="text-lg font-medium">🎁 {coupon.code}</p>
                         <p className="mt-1 text-sm text-ink-soft">
-                          {coupon.discountType === "FIXED_AMOUNT"
+                          {coupon.discountType === "FIXED"
                             ? `${new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(coupon.discountValue)} OFF`
                             : `${coupon.discountValue}% OFF`}
                         </p>

@@ -415,7 +415,7 @@ export default function CheckoutPage() {
           <button
             type="button"
             onClick={() => setShowAddressForm(true)}
-            className="mt-4 h-12 bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase"
+            className="mt-4 inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase"
           >
             Add Address
           </button>
@@ -458,10 +458,10 @@ export default function CheckoutPage() {
             </label>
           </div>
           <div className="mt-6 flex flex-col gap-3 sm:flex-row">
-            <button type="submit" disabled={pending} className="h-12 bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60">
+            <button type="submit" disabled={pending} className="inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60">
               {pending ? "Saving..." : "Save address"}
             </button>
-            <button type="button" onClick={() => setShowAddressForm(false)} className="h-12 border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream">
+            <button type="button" onClick={() => setShowAddressForm(false)} className="inline-flex h-12 items-center justify-center border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream">
               Cancel
             </button>
           </div>

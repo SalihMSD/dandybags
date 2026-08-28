@@ -59,7 +59,7 @@ export default function ProfilePage() {
         <button
           type="submit"
           disabled={pending}
-          className="h-12 bg-ink px-8 text-[12px] tracking-[0.18em] text-paper uppercase disabled:opacity-60"
+          className="inline-flex h-12 items-center justify-center bg-ink px-8 text-[12px] tracking-[0.18em] text-paper uppercase disabled:opacity-60"
         >
           {pending ? "Updating profile..." : "Save"}
         </button>

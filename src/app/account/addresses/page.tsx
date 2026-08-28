@@ -111,7 +111,7 @@ export default function AddressesPage() {
         <button
           type="submit"
           disabled={pending}
-          className="h-12 bg-ink px-8 text-[12px] tracking-[0.18em] text-paper uppercase sm:col-span-2 disabled:opacity-60"
+          className="inline-flex h-12 items-center justify-center bg-ink px-8 text-[12px] tracking-[0.18em] text-paper uppercase sm:col-span-2 disabled:opacity-60"
         >
           {pending ? "Saving..." : "Save address"}
         </button>

@@ -225,7 +225,7 @@ function TrackOrderContent() {
       {step === "orders" && orders.length === 0 && !loading ? (
         <div className="mt-8">
           <p className="text-sm text-ink-soft">No orders found for this phone number.</p>
-          <Link href="/shop" className="mt-6 inline-block h-12 border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream">
+          <Link href="/shop" className="mt-6 inline-flex h-12 items-center justify-center border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream">
             Continue Shopping
           </Link>
         </div>
@@ -321,11 +321,11 @@ function TrackOrderContent() {
             <button
               type="button"
               onClick={() => setStep("orders")}
-              className="h-12 border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream"
+              className="inline-flex h-12 items-center justify-center border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream"
             >
               Back to Orders
             </button>
-            <Link href="/shop" className="h-12 bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase text-center">
+            <Link href="/shop" className="inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase">
               Continue Shopping
             </Link>
           </div>

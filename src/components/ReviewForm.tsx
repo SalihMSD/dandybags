@@ -132,7 +132,7 @@ export function ReviewForm({ productSku, onReviewCreated }: Props) {
         <button
           type="submit"
           disabled={submitting}
-          className="h-12 bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60"
+          className="inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60"
         >
           {submitting ? "Submitting..." : "Submit Review"}
         </button>

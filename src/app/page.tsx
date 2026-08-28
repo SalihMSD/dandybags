@@ -117,7 +117,7 @@ export default async function HomePage() {
             </p>
             <Link
               href="/account/share-rewards"
-              className="mt-8 inline-block h-12 bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase transition-transform duration-200 hover:scale-105"
+              className="mt-8 inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase transition-transform duration-200 hover:scale-105"
             >
               Share & Earn
             </Link>

@@ -158,14 +158,14 @@ export function ReviewModal({ productSku, productName, orderId, existingReview, 
             <button
               type="submit"
               disabled={submitting}
-              className="h-12 bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60"
+              className="inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60"
             >
               {submitting ? "Submitting..." : existingReview ? "Update Review" : "Submit Review"}
             </button>
             <button
               type="button"
               onClick={onClose}
-              className="h-12 border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream"
+              className="inline-flex h-12 items-center justify-center border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream"
             >
               Cancel
             </button>

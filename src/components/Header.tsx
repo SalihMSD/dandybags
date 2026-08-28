@@ -195,6 +195,12 @@ function AccountMenu() {
               <Link href="/account/orders" className="flex items-center gap-3 px-4 py-2 hover:bg-cream" onClick={() => setOpen(false)}>
                 <OrdersIcon /> My Orders
               </Link>
+              <Link href="/account/coupons" className="flex items-center gap-3 px-4 py-2 hover:bg-cream" onClick={() => setOpen(false)}>
+                <CouponIcon /> My Coupons
+              </Link>
+              <Link href="/account/share-rewards" className="flex items-center gap-3 px-4 py-2 hover:bg-cream" onClick={() => setOpen(false)}>
+                <ShareIcon /> Share & Earn
+              </Link>
               <Link href="/account/addresses" className="flex items-center gap-3 px-4 py-2 hover:bg-cream" onClick={() => setOpen(false)}>
                 <AddressIcon /> Addresses
               </Link>
@@ -258,6 +264,24 @@ function AddressIcon() {
     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
       <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
       <circle cx="12" cy="10" r="3" />
+    </svg>
+  );
+}
+function CouponIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />
+    </svg>
+  );
+}
+function ShareIcon() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5">
+      <circle cx="18" cy="5" r="3" />
+      <circle cx="6" cy="12" r="3" />
+      <circle cx="18" cy="19" r="3" />
+      <line x1="8.59" y1="13.51" x2="15.42" y2="17.49" />
+      <line x1="15.41" y1="6.51" x2="8.59" y2="10.49" />
     </svg>
   );
 }
