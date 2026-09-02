@@ -17,9 +17,9 @@ export async function GET(request: Request) {
   const where: Record<string, unknown> = { role: "CUSTOMER" };
   if (search) {
     where.OR = [
-      { fullName: { contains: search } },
-      { email: { contains: search } },
-      { phone: { contains: search } },
+      { fullName: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+      { phone: { contains: search, mode: "insensitive" } },
     ];
   }
 

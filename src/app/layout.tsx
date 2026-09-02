@@ -2,7 +2,7 @@ import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Outfit } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
 import { StorefrontShell } from "@/components/StorefrontShell";
-import { site } from "@/lib/site";
+import { site, siteUrl } from "@/lib/site";
 import "./globals.css";
 
 const serif = Cormorant_Garamond({
@@ -28,7 +28,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://dandyonline.in"),
+  metadataBase: new URL(siteUrl()),
   title: {
     default: "DANDY — Bags for every journey | Bag shop Karur",
     template: "%s | DANDY",

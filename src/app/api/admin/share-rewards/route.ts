@@ -25,8 +25,9 @@ export async function GET(request: Request) {
 export async function PATCH(request: Request) {
   if (!originOk(request)) return jsonError("Invalid request.", 403);
 
+  let admin;
   try {
-    await requireAdmin();
+    admin = await requireAdmin();
   } catch {
     return jsonError("Access denied.", 403);
   }
@@ -48,13 +49,13 @@ export async function PATCH(request: Request) {
 
   try {
     if (action === "approve_5") {
-      const result = await approveShareReward(rewardId, "admin", "STORY_5");
+      const result = await approveShareReward(rewardId, admin.id, "STORY_5");
       if (!result.ok) return jsonError(result.error, 400);
       return Response.json({ ok: true, couponCode: result.couponCode });
     }
 
     if (action === "approve_10") {
-      const result = await approveShareReward(rewardId, "admin", "STORY_AND_POST_10");
+      const result = await approveShareReward(rewardId, admin.id, "STORY_AND_POST_10");
       if (!result.ok) return jsonError(result.error, 400);
       return Response.json({ ok: true, couponCode: result.couponCode });
     }
@@ -63,7 +64,7 @@ export async function PATCH(request: Request) {
       if (!reason) {
         return jsonError("Rejection reason is required.", 400);
       }
-      const result = await rejectShareReward(rewardId, "admin", reason);
+      const result = await rejectShareReward(rewardId, admin.id, reason);
       if (!result.ok) return jsonError(result.error, 400);
       return Response.json({ ok: true });
     }

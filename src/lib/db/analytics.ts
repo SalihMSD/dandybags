@@ -50,7 +50,7 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
 
   const whereClause = { gte: start, lte: end };
 
-  const [paidOrders, allOrders, orderItems, categoryAgg, totalCustomers, newCustomersInPeriod] = await Promise.all([
+  const [paidOrders, allOrders, orderItems, categoryAgg, totalCustomers, newCustomersInPeriod, allTimeStats] = await Promise.all([
     prisma.order.findMany({
       where: { paymentStatus: "PAID", createdAt: whereClause },
       select: { id: true, totalLabel: true, createdAt: true, userId: true },
@@ -94,6 +94,18 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
     `,
     prisma.user.count({ where: { role: "CUSTOMER" } }),
     prisma.user.count({ where: { role: "CUSTOMER", createdAt: whereClause } }),
+    prisma.$queryRaw<
+      Array<{
+        total_revenue: string;
+        total_orders: string;
+      }>
+    >`
+      SELECT
+        SUM(CAST(o."totalLabel" AS NUMERIC))::text AS total_revenue,
+        COUNT(*)::text AS total_orders
+      FROM "orders" o
+      WHERE o."paymentStatus" = 'PAID'
+    `,
   ]);
 
   let paidRevenue = 0;
@@ -165,8 +177,8 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
     .map(([date, { revenue, count }]) => ({ date, revenue: Math.round(revenue), count }))
     .sort((a, b) => (a.date < b.date ? 1 : -1));
 
-  const dailyRevenue = dailyData.slice(0, 30);
-  const dailyOrders = dailyData.slice(0, 30);
+  const dailyRevenue = dailyData;
+  const dailyOrders = dailyData;
 
   const productMap = new Map<string, { sku: string; name: string; qty: number; revenue: number }>();
   for (const item of orderItems) {
@@ -243,9 +255,11 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
         avgOrderValue: thirtyDayOrders > 0 ? Math.round(thirtyDayRevenue / thirtyDayOrders) : 0,
       },
       allTime: {
-        revenue: Math.round(paidRevenue),
-        orders: paidCount,
-        avgOrderValue: Math.round(avgOrderValue),
+        revenue: Math.round(Number(allTimeStats[0]?.total_revenue || "0")),
+        orders: Number(allTimeStats[0]?.total_orders || "0"),
+        avgOrderValue: allTimeStats[0] && Number(allTimeStats[0].total_orders) > 0
+          ? Math.round(Number(allTimeStats[0].total_revenue || "0") / Number(allTimeStats[0].total_orders))
+          : 0,
       },
     },
     orders: {

@@ -86,9 +86,9 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           -translate-x-full
           transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : ""}
-          xl:translate-x-0 xl:transition-none
-          ${collapsed ? "xl:w-20" : "xl:w-60"}
-        `}
+          lg:translate-x-0 lg:transition-none
+          ${collapsed ? "lg:w-20" : "lg:w-60"}
+          `}
       >
         <div className={`flex w-full items-center justify-${collapsed ? "center" : "end"}`}>
           <button
@@ -137,14 +137,14 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         </div>
       </aside>
 
-      {/* Main content: takes remaining width on desktop, full width on mobile */}
-      <div className={`flex-1 overflow-x-hidden ${collapsed ? "xl:ml-[80px]" : "xl:ml-[240px]"}`}>
+       {/* Main content: takes remaining width on desktop, full width on mobile */}
+      <div className={`flex-1 overflow-x-hidden ${collapsed ? "lg:ml-[80px]" : "lg:ml-[240px]"}`}>
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-ink/10 bg-paper px-4 shadow-sm sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="text-ink hover:text-camel-dark xl:hidden"
+              className="text-ink hover:text-camel-dark lg:hidden"
               aria-label="Open menu"
               aria-expanded={sidebarOpen}
             >
@@ -153,7 +153,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <button
               type="button"
               onClick={() => setCollapsed(!collapsed)}
-              className="hidden text-ink hover:text-camel-dark xl:inline-flex"
+              className="hidden text-ink hover:text-camel-dark lg:inline-flex"
               aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
               aria-expanded={!collapsed}
             >

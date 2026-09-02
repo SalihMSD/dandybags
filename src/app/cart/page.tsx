@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AssetImage } from "@/components/AssetImage";
 import { cartCount, readCart, setQty, type CartLine } from "@/lib/cart";
+import { formatInr } from "@/lib/format";
 
 export default function CartPage() {
   const [lines, setLines] = useState<CartLine[]>([]);
@@ -87,7 +88,7 @@ export default function CartPage() {
         >
           Checkout
         </Link>
-        <p className="text-sm text-ink-soft">{cartCount()} item(s). Payment is confirmed after the order is placed.</p>
+        <p className="text-sm text-ink-soft">{lines.length} item(s) · Subtotal: {formatInr(lines.reduce((sum, l) => sum + l.sellingPrice * l.qty, 0))}</p>
       </div>
     </div>
   );

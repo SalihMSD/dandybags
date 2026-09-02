@@ -107,6 +107,19 @@ export async function POST(request: Request) {
     return jsonError("Name, SKU, slug, and category are required.", 400);
   }
 
+  if (sellingPrice !== null && sellingPrice < 0) {
+    return jsonError("Selling price cannot be negative.", 400);
+  }
+  if (mrp !== null && mrp < 0) {
+    return jsonError("MRP cannot be negative.", 400);
+  }
+  if (sellingPrice !== null && mrp !== null && sellingPrice > mrp) {
+    return jsonError("Selling price cannot exceed MRP.", 400);
+  }
+  if (stock !== null && stock < 0) {
+    return jsonError("Stock cannot be negative.", 400);
+  }
+
   const existingSku = await findProductBySku(sku);
   if (existingSku) {
     return jsonError("A product with this SKU already exists.", 409);

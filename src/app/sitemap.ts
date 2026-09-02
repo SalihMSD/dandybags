@@ -1,12 +1,12 @@
 import { MetadataRoute } from "next";
 import { prisma } from "@/lib/db/prisma";
 import { categories } from "@/lib/categories";
-import { site } from "@/lib/site";
+import { siteUrl } from "@/lib/site";
 
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://dandyonline.in";
+  const base = siteUrl();
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },

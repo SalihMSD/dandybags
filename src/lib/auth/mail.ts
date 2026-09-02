@@ -1,12 +1,13 @@
 import nodemailer from "nodemailer";
 import { issueAuthToken } from "@/lib/db/tokens";
+import { siteUrl } from "@/lib/site";
 
 export async function issueToken(userId: string, type: "VERIFY_EMAIL" | "RESET_PASSWORD", hours: number) {
   return issueAuthToken(userId, type, hours);
 }
 
 export function appUrl() {
-  return process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL || "http://localhost:3000";
+  return siteUrl();
 }
 
 export function smtpConfigured() {

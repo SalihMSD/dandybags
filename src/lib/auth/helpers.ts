@@ -10,16 +10,31 @@ export function jsonError(message: string, status: number) {
 
 /**
  * Same-origin check for mutating requests.
- * Known limitation (unchanged in E3): requests with no Origin header are allowed.
- */
+ * Falls back to Referer header when Origin is missing (some legitimate
+ * clients omit Origin but include Referer).
+ * */
 export function originOk(request: Request) {
   if (request.method === "GET" || request.method === "HEAD") return true;
   const origin = request.headers.get("origin");
-  if (!origin) return true;
-  const host = request.headers.get("host");
-  try {
-    return new URL(origin).host === host;
-  } catch {
+  if (origin) {
+    const host = request.headers.get("host");
+    try {
+      return new URL(origin).host === host;
+    } catch {
+      return false;
+    }
+  }
+  const referer = request.headers.get("referer");
+  if (referer) {
+    const host = request.headers.get("host");
+    try {
+      return new URL(referer).host === host;
+    } catch {
+      return false;
+    }
+  }
+  if (process.env.NODE_ENV === "production") {
     return false;
   }
+  return true;
 }

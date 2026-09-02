@@ -311,7 +311,7 @@ export default function AdminCoupons() {
                         ? "bg-camel/20 text-ink"
                         : "bg-ink/10 text-ink-soft"
                     }`}>
-                      {c.isActive ? c.status : "INACTIVE"}
+                      {c.isActive ? c.status : c.status === "ACTIVE" ? "INACTIVE" : c.status}
                     </span>
                   </td>
                   <td className="text-ink-soft">{getSource(c)}</td>

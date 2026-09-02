@@ -39,7 +39,6 @@ function TrackOrderContent() {
   const [phone, setPhone] = useState("");
   const [trackingId, setTrackingId] = useState("");
   const [otp, setOtp] = useState("");
-  const [code, setCode] = useState("");
   const [orders, setOrders] = useState<Order[]>([]);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState("");
@@ -94,13 +93,12 @@ function TrackOrderContent() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ phone }),
       });
-      const data = (await res.json()) as { ok?: boolean; error?: string; trackingId?: string; code?: string };
+      const data = (await res.json()) as { ok?: boolean; error?: string; trackingId?: string };
       if (!res.ok || !data.ok) {
         setError(data.error || "Failed to send OTP.");
         return;
       }
       setTrackingId(data.trackingId || "");
-      setCode(data.code || "");
       setOtpSent(true);
       setStep("otp");
     } catch {
@@ -192,7 +190,6 @@ function TrackOrderContent() {
         <form onSubmit={verifyOtp} className="mx-auto mt-8 max-w-sm space-y-4 text-left">
           <p className="text-sm text-ink-soft">
             Enter the OTP sent to {phone}.
-            {code && <span className="mt-2 inline-block font-medium text-ink"> (Staging OTP: {code})</span>}
           </p>
           <label className="block text-sm">
             OTP *

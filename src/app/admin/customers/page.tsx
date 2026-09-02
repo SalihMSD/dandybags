@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { AssetImage } from "@/components/AssetImage";
+import { useDebounce } from "@/lib/useDebounce";
 
 type Customer = {
   id: string;
@@ -28,24 +29,19 @@ export default function AdminCustomers() {
   const [error, setError] = useState("");
   const [search, setSearch] = useState("");
 
+  const debouncedSearch = useDebounce(search, 300);
+
   useEffect(() => {
-    void fetch("/api/admin/customers", { credentials: "include" })
+    void fetch(`/api/admin/customers?search=${encodeURIComponent(debouncedSearch)}`, { credentials: "include" })
       .then(async (res) => {
         const data = (await res.json()) as { customers?: Customer[]; error?: string };
         if (!res.ok) setError(data.error || "Failed to load customers.");
         else setCustomers(data.customers || []);
       })
       .finally(() => setLoading(false));
-  }, []);
+  }, [debouncedSearch]);
 
-  const filtered = customers.filter((c) => {
-    const q = search.toLowerCase();
-    return (
-      c.fullName.toLowerCase().includes(q) ||
-      (c.email || "").toLowerCase().includes(q) ||
-      (c.phone || "").toLowerCase().includes(q)
-    );
-  });
+  const filtered = customers;
 
   return (
     <div className="space-y-6">
@@ -105,9 +101,14 @@ export default function AdminCustomers() {
                       <span className="rounded bg-camel/20 px-2 py-0.5 text-xs">No</span>
                     )}
                   </td>
-                  <td className="text-center">
-                    <button className="text-xs underline">View Orders</button>
-                  </td>
+                   <td className="text-center">
+                     <Link
+                       href={`/admin/orders?search=${encodeURIComponent(c.email || c.phone || c.id)}`}
+                       className="text-xs underline"
+                     >
+                       View Orders
+                     </Link>
+                   </td>
                 </tr>
               ))
             )}

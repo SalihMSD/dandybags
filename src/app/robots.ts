@@ -1,7 +1,8 @@
 import { MetadataRoute } from "next";
+import { siteUrl } from "@/lib/site";
 
 export default function robots(): MetadataRoute.Robots {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://dandyonline.in";
+  const base = siteUrl();
 
   return {
     rules: [

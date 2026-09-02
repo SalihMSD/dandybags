@@ -96,6 +96,22 @@ export async function PATCH(request: Request, ctx: Ctx) {
     if (duplicate) return jsonError("A product with this slug already exists.", 409);
   }
 
+  if (sellingPrice !== undefined && sellingPrice !== null && sellingPrice < 0) {
+    return jsonError("Selling price cannot be negative.", 400);
+  }
+  if (mrp !== undefined && mrp !== null && mrp < 0) {
+    return jsonError("MRP cannot be negative.", 400);
+  }
+  if (sellingPrice !== undefined && sellingPrice !== null && mrp !== undefined && mrp !== null && sellingPrice > mrp) {
+    return jsonError("Selling price cannot exceed MRP.", 400);
+  }
+  if (discountPercent !== undefined && discountPercent !== null && discountPercent > 100) {
+    return jsonError("Discount percent cannot exceed 100.", 400);
+  }
+  if (stock !== undefined && stock !== null && stock < 0) {
+    return jsonError("Stock cannot be negative.", 400);
+  }
+
   const data: Record<string, unknown> = {};
   if (name !== undefined) data.name = name;
   if (sku !== undefined) data.sku = sku;
@@ -165,7 +181,14 @@ export async function DELETE(_request: Request, ctx: Ctx) {
 
     try {
       const sku = String(existing.sku || existing.id).replace(/[^a-zA-Z0-9-]/g, "-");
-      await supabaseAdmin().storage.from("product-images").remove([`products/${sku}`]);
+      const prefix = `products/${sku}/`;
+      const { data: files } = await supabaseAdmin().storage
+        .from("product-images")
+        .list(prefix);
+      const filePaths = (files || []).map((f) => `${prefix}${f.name}`);
+      if (filePaths.length > 0) {
+        await supabaseAdmin().storage.from("product-images").remove(filePaths);
+      }
     } catch (cleanupError) {
       console.error("Storage cleanup failed:", cleanupError);
     }

@@ -1,3 +1,5 @@
+import { randomInt } from "crypto";
+
 type OtpRecord = {
   phone: string;
   code: string;
@@ -16,7 +18,7 @@ export function generateTrackingId(): string {
   return `trk_${Math.random().toString(36).slice(2)}${Date.now().toString(36)}`;
 }
 
-export function requestOtp(phone: string): { ok: true; trackingId: string; code: string; expiresAt: number } | { ok: false; error: string } {
+export function requestOtp(phone: string): { ok: true; trackingId: string; expiresAt: number } | { ok: false; error: string } {
   const normalized = phone.replace(/\D/g, "").slice(-10);
   if (normalized.length !== 10) {
     return { ok: false as const, error: "Enter a valid 10-digit mobile number." };
@@ -33,7 +35,7 @@ export function requestOtp(phone: string): { ok: true; trackingId: string; code:
 
   cleanup();
   const trackingId = generateTrackingId();
-  const code = Math.floor(100000 + Math.random() * 900000).toString();
+  const code = randomInt(100000, 1000000).toString();
   store.set(trackingId, {
     phone: normalized,
     code,
@@ -41,7 +43,7 @@ export function requestOtp(phone: string): { ok: true; trackingId: string; code:
     verified: false,
   });
 
-  return { ok: true as const, trackingId, code, expiresAt: now + OTP_TTL_MS };
+  return { ok: true as const, trackingId, expiresAt: now + OTP_TTL_MS };
 }
 
 export function verifyOtp(trackingId: string, code: string): { ok: true; phone: string } | { ok: false; error: string } {

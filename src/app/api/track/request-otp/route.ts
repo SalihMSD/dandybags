@@ -23,6 +23,5 @@ export async function POST(request: Request) {
     ok: true,
     trackingId: result.trackingId,
     expiresAt: result.expiresAt,
-    code: result.code,
   });
 }

@@ -26,3 +26,16 @@ export const site = {
 export const SPEC_PLACEHOLDER = "Specification to be added";
 export const PRICE_PLACEHOLDER = "To be updated";
 export const CONTENT_PLACEHOLDER = "To be updated";
+
+export function siteUrl(): string {
+  const raw = process.env.NEXT_PUBLIC_SITE_URL || "https://dandyonline.in";
+  try {
+    const url = new URL(raw);
+    if (url.hostname.startsWith("www.")) {
+      url.hostname = url.hostname.slice(4);
+    }
+    return url.toString().replace(/\/$/, "");
+  } catch {
+    return raw.replace(/\/$/, "");
+  }
+}

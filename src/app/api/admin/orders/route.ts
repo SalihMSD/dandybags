@@ -2,6 +2,7 @@ import { jsonError } from "@/lib/auth/helpers";
 import { requireAdmin } from "@/lib/auth/session";
 import { listAdminOrders, listAdminOrdersFiltered } from "@/lib/db/admin-orders";
 import { parseTotalLabel } from "@/lib/db/analytics";
+import { formatInr } from "@/lib/format";
 
 export const runtime = "nodejs";
 
@@ -38,6 +39,7 @@ export async function GET(request: Request) {
     const lines = [CSV_HEADERS.join(",")];
     for (const o of result.orders) {
       const itemCount = o.items.reduce((sum, i) => sum + i.qty, 0);
+      const subtotal = o.items.reduce((sum, i) => sum + Number(i.unitPrice ?? 0) * i.qty, 0);
       const line = [
         o.id,
         new Date(o.createdAt).toLocaleString("en-IN"),
@@ -45,7 +47,7 @@ export async function GET(request: Request) {
         o.customer.email,
         o.customer.phone,
         String(itemCount),
-        o.totalLabel,
+        formatInr(subtotal),
         o.totalLabel,
         o.paymentStatus,
         o.orderStatus,
