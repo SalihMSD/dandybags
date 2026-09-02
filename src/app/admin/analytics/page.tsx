@@ -195,7 +195,7 @@ export default function AdminAnalytics() {
         <StatCard
           label="Revenue (Period)"
           value={formatInr(data.metrics.periodRevenue)}
-          subtitle={`₹${Math.round(data.metrics.paidOrders)} paid orders`}
+          subtitle={`${Math.round(data.metrics.paidOrders)} paid orders`}
         />
         <StatCard
           label="Revenue Today"
