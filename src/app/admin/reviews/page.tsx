@@ -13,10 +13,9 @@ type AdminReview = {
   title: string;
   comment: string;
   verifiedPurchase: boolean;
-  status: string;
+  status: "PENDING" | "APPROVED" | "HIDDEN";
   helpfulCount: number;
   createdAt: string;
-  updatedAt: string;
 };
 
 export default function AdminReviews() {
@@ -29,23 +28,18 @@ export default function AdminReviews() {
 
   async function load() {
     setLoading(true);
-    try {
-      const url = new URL("/api/admin/reviews", window.location.origin);
-      url.searchParams.set("page", String(page));
-      url.searchParams.set("pageSize", "20");
-      if (filter) url.searchParams.set("status", filter);
+    const url = new URL("/api/admin/reviews", window.location.origin);
+    url.searchParams.set("page", String(page));
+    url.searchParams.set("pageSize", "20");
+    if (filter) url.searchParams.set("status", filter);
 
-      const res = await fetch(url.toString(), { credentials: "include" });
-      const data = (await res.json()) as { reviews?: AdminReview[]; totalPages?: number; error?: string };
-      if (res.ok) {
-        setReviews(data.reviews || []);
-        setTotalPages(data.totalPages || 1);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
+    const res = await fetch(url.toString(), { credentials: "include" });
+    const data = (await res.json()) as { reviews?: AdminReview[]; totalPages?: number; error?: string };
+    if (res.ok) {
+      setReviews(data.reviews || []);
+      setTotalPages(data.totalPages || 1);
     }
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -54,53 +48,33 @@ export default function AdminReviews() {
 
   async function updateStatus(reviewId: string, status: "APPROVED" | "HIDDEN") {
     setActionLoading(reviewId);
-    try {
-      await fetch("/api/admin/reviews", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ reviewId, status }),
-      });
-      await load();
-    } catch {
-      // ignore
-    } finally {
-      setActionLoading(null);
-    }
+    await fetch("/api/admin/reviews", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ reviewId, status }),
+    });
+    await load();
+    setActionLoading(null);
   }
 
   async function removeReview(reviewId: string) {
     if (!confirm("Delete this review? This cannot be undone.")) return;
     setActionLoading(reviewId);
-    try {
-      await fetch("/api/admin/reviews", {
-        method: "DELETE",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ reviewId }),
-      });
-      await load();
-    } catch {
-      // ignore
-    } finally {
-      setActionLoading(null);
-    }
+    await fetch("/api/admin/reviews", {
+      method: "DELETE",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ reviewId }),
+    });
+    await load();
+    setActionLoading(null);
   }
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 md:px-8">
-      <h1 className="font-serif text-4xl">Review Moderation</h1>
-
-      <div className="mt-6 flex items-center gap-4">
-        <label className="text-sm">Filter:</label>
-        <select
-          value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-            setPage(1);
-          }}
-          className="border border-ink/15 bg-paper px-3 py-2 text-sm"
-        >
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
+        <select value={filter} onChange={(e) => { setFilter(e.target.value); setPage(1); }} className="rounded border border-ink/10 bg-paper px-3 py-2 text-sm">
           <option value="">All</option>
           <option value="PENDING">Pending</option>
           <option value="APPROVED">Approved</option>
@@ -109,40 +83,47 @@ export default function AdminReviews() {
       </div>
 
       {loading ? (
-        <p className="mt-6 text-ink-soft">Loading...</p>
+        <p className="text-sm text-ink-soft">Loading reviews…</p>
       ) : reviews.length === 0 ? (
-        <p className="mt-6 text-ink-soft">No reviews found.</p>
+        <p className="text-sm text-ink-soft">No reviews found.</p>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4">
           {reviews.map((review) => (
-            <div key={review.id} className="border border-ink/10 bg-paper p-4">
+            <div key={review.id} className="rounded border border-ink/10 bg-paper p-4 sm:p-6">
               <div className="flex items-start justify-between gap-4">
-                <div>
-                  <p className="font-medium">{review.productName}</p>
-                  <p className="text-sm text-ink-soft">
-                    By {review.userName} ({review.userEmail})
-                  </p>
-                  <div className="mt-1 flex items-center gap-0.5 text-camel-dark">
+                <div className="space-y-3">
+                  <div>
+                    <p className="font-medium">{review.productName}</p>
+                    <p className="text-sm text-ink-soft">SKU: {review.productSku}</p>
+                    <p className="text-sm text-ink-soft">
+                      By {review.userName} ({review.userEmail})
+                    </p>
+                  </div>
+
+                  <div className="flex items-center gap-0.5 text-camel-dark">
                     {[1, 2, 3, 4, 5].map((star) => (
                       <svg key={star} width="14" height="14" viewBox="0 0 24 24" fill={star <= review.rating ? "currentColor" : "none"} stroke="currentColor" strokeWidth="1.5">
                         <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
                       </svg>
                     ))}
                   </div>
-                  <p className="mt-2 font-medium">{review.title}</p>
-                  <p className="mt-1 text-sm text-ink-soft">{review.comment}</p>
-                  <div className="mt-2 flex items-center gap-2 text-xs">
-                    <span className="rounded bg-cream px-2 py-0.5">{review.status}</span>
-                    {review.verifiedPurchase && <span className="text-green-800">Verified Purchase</span>}
-                    <span className="text-ink-soft">{review.helpfulCount} helpful</span>
-                    <span className="text-ink-soft">{new Date(review.createdAt).toLocaleDateString("en-IN")}</span>
+
+                  <p className="font-medium">{review.title}</p>
+                  <p className="text-sm text-ink-soft">{review.comment}</p>
+
+                  <div className="flex items-center gap-3 text-xs text-ink-soft">
+                    {review.verifiedPurchase && (
+                      <span className="rounded bg-green-50 px-2 py-0.5 text-green-800">Verified Purchase</span>
+                    )}
+                    <span>Helpful: {review.helpfulCount}</span>
+                    <span>{new Date(review.createdAt).toLocaleDateString("en-IN")}</span>
                   </div>
                 </div>
+
                 <div className="flex flex-col gap-2">
                   {review.status === "PENDING" && (
                     <button
-                      type="button"
-                      onClick={() => updateStatus(review.id, "APPROVED")}
+                      onClick={() => void updateStatus(review.id, "APPROVED")}
                       disabled={actionLoading === review.id}
                       className="h-8 bg-camel px-3 text-[10px] tracking-[0.14em] uppercase disabled:opacity-60"
                     >
@@ -151,8 +132,7 @@ export default function AdminReviews() {
                   )}
                   {review.status !== "HIDDEN" && (
                     <button
-                      type="button"
-                      onClick={() => updateStatus(review.id, "HIDDEN")}
+                      onClick={() => void updateStatus(review.id, "HIDDEN")}
                       disabled={actionLoading === review.id}
                       className="h-8 border border-ink px-3 text-[10px] tracking-[0.14em] uppercase disabled:opacity-60"
                     >
@@ -161,8 +141,7 @@ export default function AdminReviews() {
                   )}
                   {review.status === "HIDDEN" && (
                     <button
-                      type="button"
-                      onClick={() => updateStatus(review.id, "APPROVED")}
+                      onClick={() => void updateStatus(review.id, "APPROVED")}
                       disabled={actionLoading === review.id}
                       className="h-8 bg-camel px-3 text-[10px] tracking-[0.14em] uppercase disabled:opacity-60"
                     >
@@ -170,7 +149,6 @@ export default function AdminReviews() {
                     </button>
                   )}
                   <button
-                    type="button"
                     onClick={() => removeReview(review.id)}
                     disabled={actionLoading === review.id}
                     className="h-8 border border-red-800 px-3 text-[10px] tracking-[0.14em] uppercase text-red-800 disabled:opacity-60"
@@ -185,9 +163,8 @@ export default function AdminReviews() {
       )}
 
       {totalPages > 1 && (
-        <div className="mt-6 flex items-center justify-between">
+        <div className="flex items-center justify-between">
           <button
-            type="button"
             disabled={page === 1}
             onClick={() => setPage((p) => p - 1)}
             className="h-10 border border-ink px-4 text-[11px] tracking-[0.16em] uppercase disabled:opacity-40"
@@ -198,7 +175,6 @@ export default function AdminReviews() {
             Page {page} of {totalPages}
           </span>
           <button
-            type="button"
             disabled={page === totalPages}
             onClick={() => setPage((p) => p + 1)}
             className="h-10 border border-ink px-4 text-[11px] tracking-[0.16em] uppercase disabled:opacity-40"

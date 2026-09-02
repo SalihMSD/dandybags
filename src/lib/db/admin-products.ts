@@ -1,4 +1,5 @@
 import { prisma } from "@/lib/db/prisma";
+import { newId } from "@/lib/db/store";
 
 const productSelect = {
   id: true,
@@ -47,6 +48,84 @@ export async function listAdminProducts() {
   return products;
 }
 
+export type ProductListParams = {
+  search?: string;
+  category?: string;
+  b2cAvailable?: string;
+  stockStatus?: string;
+  sortBy?: string;
+  sortDir?: string;
+  page?: number;
+  pageSize?: number;
+};
+
+export async function listAdminProductsPaginated(params: ProductListParams) {
+  const page = Math.max(1, Number(params.page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 20));
+  const skip = (page - 1) * pageSize;
+
+  const where: Record<string, unknown> = {};
+
+  if (params.search) {
+    const q = params.search;
+    where.OR = [
+      { name: { contains: q, mode: "insensitive" } },
+      { sku: { contains: q, mode: "insensitive" } },
+      { category: { contains: q, mode: "insensitive" } },
+    ];
+  }
+
+  if (params.category && params.category !== "all") {
+    where.category = params.category;
+  }
+
+  if (params.b2cAvailable === "available") {
+    where.b2cAvailable = true;
+  } else if (params.b2cAvailable === "unavailable") {
+    where.b2cAvailable = false;
+  }
+
+  if (params.stockStatus === "in-stock") {
+    where.stock = { gt: 0 };
+  } else if (params.stockStatus === "low-stock") {
+    where.stock = { lt: 10, gt: 0 };
+  } else if (params.stockStatus === "out-of-stock") {
+    where.stock = 0;
+  } else if (params.stockStatus === "unlimited") {
+    where.stock = null;
+  }
+
+  const sortByMap: Record<string, string> = {
+    name: "name",
+    price: "sellingPrice",
+    stock: "stock",
+    created: "createdAt",
+  };
+  const column = sortByMap[params.sortBy || "created"] || "createdAt";
+  const direction = params.sortDir === "asc" ? "asc" : "desc";
+
+  const orderBy: Record<string, string> = { [column]: direction };
+
+  const [products, total] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      select: productSelect,
+      orderBy,
+      skip,
+      take: pageSize,
+    }),
+    prisma.product.count({ where }),
+  ]);
+
+  return {
+    products,
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  };
+}
+
 export async function getAdminProduct(id: string) {
   const product = await prisma.product.findUnique({
     select: productSelect,
@@ -70,6 +149,13 @@ export async function updateAdminProduct(id: string, data: Record<string, unknow
     select: productSelect,
   });
   return product;
+}
+
+export async function bulkUpdateProducts(ids: string[], data: Record<string, unknown>) {
+  return prisma.product.updateMany({
+    where: { id: { in: ids } },
+    data: data as Parameters<typeof prisma.product.updateMany>[0]["data"],
+  });
 }
 
 export async function deleteAdminProduct(id: string) {
@@ -116,4 +202,30 @@ export async function findProductBySlug(slug: string, excludeId?: string) {
     select: { id: true },
   });
   return product;
+}
+
+export async function bulkDeleteProducts(ids: string[]) {
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids } },
+    select: { id: true, sku: true, name: true },
+  });
+
+  const errors: string[] = [];
+  for (const product of products) {
+    const wishlistCount = await prisma.wishlist.count({ where: { sku: product.sku } });
+    if (wishlistCount > 0) {
+      errors.push(`"${product.name}" is in ${wishlistCount} wishlist(s).`);
+    }
+    const cartItemCount = await prisma.cartItem.count({ where: { sku: product.sku } });
+    if (cartItemCount > 0) {
+      errors.push(`"${product.name}" is in ${cartItemCount} cart(s).`);
+    }
+  }
+
+  if (errors.length > 0) {
+    throw new Error(errors.join(" "));
+  }
+
+  await prisma.product.deleteMany({ where: { id: { in: ids } } });
+  return products;
 }

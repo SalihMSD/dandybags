@@ -2,6 +2,7 @@ import { type OrderStatus, type Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db/prisma";
 import { publicOrder } from "@/lib/db/orders";
 import { canTransition, isOrderStatus, parseDeliveryField } from "@/lib/db/order-status";
+import { parseTotalLabel } from "@/lib/db/analytics";
 
 const orderInclude = {
   items: { orderBy: { sku: "asc" as const } },
@@ -22,12 +23,84 @@ function publicAdminOrder(
   };
 }
 
+export type AdminOrderFilters = {
+  search?: string;
+  paymentStatus?: string;
+  orderStatus?: string;
+  startDate?: string;
+  endDate?: string;
+  page?: number;
+  pageSize?: number;
+};
+
 export async function listAdminOrders() {
   const orders = await prisma.order.findMany({
     include: orderInclude,
     orderBy: { createdAt: "desc" },
   });
   return orders.map(publicAdminOrder);
+}
+
+export async function listAdminOrdersFiltered(params: AdminOrderFilters) {
+  const page = Math.max(1, Number(params.page) || 1);
+  const pageSize = Math.min(100, Math.max(1, Number(params.pageSize) || 20));
+  const skip = (page - 1) * pageSize;
+
+  const where: Record<string, unknown> = {};
+
+  if (params.search && params.search.trim()) {
+    const s = params.search.trim();
+    const isId = s.startsWith("DND-");
+    where.OR = [
+      { id: isId ? { equals: s } : undefined },
+      { user: { fullName: { contains: s, mode: "insensitive" } } },
+      { user: { email: { contains: s, mode: "insensitive" } } },
+      { user: { phone: { contains: s, mode: "insensitive" } } },
+      { shippingProvider: { contains: s, mode: "insensitive" } },
+      { trackingNumber: { contains: s, mode: "insensitive" } },
+    ].filter(Boolean);
+  }
+
+  if (params.paymentStatus && params.paymentStatus !== "ALL") {
+    where.paymentStatus = params.paymentStatus as "PENDING" | "PAID" | "FAILED";
+  }
+
+  if (params.orderStatus && params.orderStatus !== "ALL") {
+    where.orderStatus = params.orderStatus as OrderStatus;
+  }
+
+  if (params.startDate) {
+    const start = new Date(params.startDate);
+    start.setHours(0, 0, 0, 0);
+    where.AND = where.AND || [];
+    (where.AND as Array<Record<string, unknown>>).push({ createdAt: { gte: start } });
+  }
+
+  if (params.endDate) {
+    const end = new Date(params.endDate);
+    end.setHours(23, 59, 59, 999);
+    where.AND = where.AND || [];
+    (where.AND as Array<Record<string, unknown>>).push({ createdAt: { lte: end } });
+  }
+
+  const [orders, total] = await Promise.all([
+    prisma.order.findMany({
+      where,
+      include: orderInclude,
+      orderBy: { createdAt: "desc" },
+      skip,
+      take: pageSize,
+    }),
+    prisma.order.count({ where }),
+  ]);
+
+  return {
+    orders: orders.map(publicAdminOrder),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.ceil(total / pageSize),
+  };
 }
 
 export async function getAdminOrder(orderId: string) {
@@ -115,3 +188,5 @@ export async function updateAdminOrder(orderId: string, body: Record<string, unk
   });
   return { ok: true as const, order: publicAdminOrder(updated) };
 }
+
+export { parseTotalLabel };

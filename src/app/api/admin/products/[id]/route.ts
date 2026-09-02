@@ -2,6 +2,7 @@ import { jsonError, originOk } from "@/lib/auth/helpers";
 import { requireAdmin } from "@/lib/auth/session";
 import { getAdminProduct, updateAdminProduct, deleteAdminProduct, findProductBySku, findProductBySlug } from "@/lib/db/admin-products";
 import { revalidatePath } from "next/cache";
+import { supabaseAdmin } from "@/lib/supabase/server";
 
 export const runtime = "nodejs";
 
@@ -161,6 +162,14 @@ export async function DELETE(_request: Request, ctx: Ctx) {
     } catch {
       // Cache revalidation is best-effort; do not fail the request.
     }
+
+    try {
+      const sku = String(existing.sku || existing.id).replace(/[^a-zA-Z0-9-]/g, "-");
+      await supabaseAdmin().storage.from("product-images").remove([`products/${sku}`]);
+    } catch (cleanupError) {
+      console.error("Storage cleanup failed:", cleanupError);
+    }
+
     return Response.json({ product: existing });
   } catch (error) {
     const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";

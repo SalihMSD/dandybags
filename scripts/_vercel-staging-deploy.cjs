@@ -72,6 +72,18 @@ function vercelEnvAdd(key, value) {
   console.log(`OK ${key}`);
 }
 
+function vercelEnvAddProduction(key, value) {
+  const res = run("npx", ["vercel", "env", "add", key, "production", "--force"], {
+    input: value,
+    stdio: ["pipe", "pipe", "pipe"],
+  });
+  if (res.status !== 0) {
+    console.error(`Failed vercel env add (production) ${key}`);
+    process.exit(1);
+  }
+  console.log(`OK ${key} (production)`);
+}
+
 function main() {
   const local = loadLocalEnv();
   for (const key of LOCAL_KEYS) {
@@ -89,12 +101,20 @@ function main() {
     vercelEnvAdd(key, local[key]);
   }
 
-  // Placeholder APP_URL; updated after first deploy URL is known.
+  // Placeholder APP_URL and NEXT_PUBLIC_SITE_URL; updated after first deploy URL is known.
+  // Production always uses https://dandyonline.in for SEO (sitemap, canonical, OG).
+  const fallbackPreviewUrl = "https://dandy-bags-staging.vercel.app";
+  const productionUrl = "https://dandyonline.in";
+
   if (local.APP_URL && !local.APP_URL.includes("localhost")) {
     vercelEnvAdd("APP_URL", local.APP_URL);
   } else {
-    vercelEnvAdd("APP_URL", "https://dandy-bags-staging.vercel.app");
+    vercelEnvAdd("APP_URL", fallbackPreviewUrl);
   }
+  vercelEnvAdd("NEXT_PUBLIC_SITE_URL", fallbackPreviewUrl);
+
+  // Ensure production environment has the correct canonical domain.
+  vercelEnvAddProduction("NEXT_PUBLIC_SITE_URL", productionUrl);
 
   console.log("Deploying preview...");
   const deploy = run("npx", ["vercel", "--yes"], { stdio: ["inherit", "pipe", "pipe"] });
@@ -109,6 +129,7 @@ function main() {
   if (previewUrl) {
     console.log("PREVIEW_URL=" + previewUrl);
     vercelEnvAdd("APP_URL", previewUrl);
+    vercelEnvAdd("NEXT_PUBLIC_SITE_URL", previewUrl);
     console.log("Redeploying with APP_URL...");
     const redeploy = run("npx", ["vercel", "--yes"], { stdio: ["inherit", "pipe", "pipe"] });
     const out2 = (redeploy.stdout || "") + (redeploy.stderr || "");
@@ -117,6 +138,7 @@ function main() {
     console.log("FINAL_URL=" + finalUrl);
     if (finalUrl && finalUrl !== previewUrl) {
       vercelEnvAdd("APP_URL", finalUrl);
+      vercelEnvAdd("NEXT_PUBLIC_SITE_URL", finalUrl);
       console.log("Redeploying with final APP_URL...");
       run("npx", ["vercel", "--yes"], { stdio: ["inherit", "pipe", "pipe"] });
     }

@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
-import { Logo } from "@/components/Logo";
 
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: "📊" },
@@ -13,7 +12,7 @@ const navItems = [
   { label: "Inventory", href: "/admin/inventory", icon: "📦" },
   { label: "Customers", href: "/admin/customers", icon: "👥" },
   { label: "Reviews", href: "/admin/reviews", icon: "⭐" },
-  { label: "Coupling", href: "/admin/coupons", icon: "🎟️" },
+  { label: "Coupons", href: "/admin/coupons", icon: "🎟️" },
   { label: "Share & Earn", href: "/admin/share-rewards", icon: "📲" },
   { label: "Analytics", href: "/admin/analytics", icon: "📈" },
   { label: "Settings", href: "/admin/settings", icon: "⚙" },
@@ -29,12 +28,29 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
   const router = useRouter();
   const pathname = usePathname();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [collapsed, setCollapsed] = useState(false);
+
+  const isLoginPage = pathname === "/admin/login";
 
   useEffect(() => {
+    if (isLoginPage) return;
     if (!loading && (!user || user.role !== "ADMIN")) {
       router.replace("/admin/login");
     }
-  }, [loading, user, router]);
+  }, [loading, user, router, isLoginPage]);
+
+  useEffect(() => {
+    const saved = sessionStorage.getItem("adminSidebarCollapsed");
+    if (saved === "true") setCollapsed(true);
+  }, []);
+
+  useEffect(() => {
+    sessionStorage.setItem("adminSidebarCollapsed", String(collapsed));
+  }, [collapsed]);
+
+  if (isLoginPage) {
+    return <>{children}</>;
+  }
 
   if (loading) {
     return (
@@ -53,65 +69,100 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   return (
     <div className="flex min-h-screen bg-paper text-ink">
-      {/* Mobile sidebar overlay */}
+      {/* Mobile drawer backdrop */}
       {sidebarOpen && (
         <div
           className="fixed inset-0 z-40 bg-black/40 lg:hidden"
           onClick={() => setSidebarOpen(false)}
+          aria-hidden="true"
         />
       )}
 
+      {/* Sidebar: overlay drawer on mobile/tablet, flex participant on desktop */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 w-64 shrink-0 flex-col border-r border-ink/10 bg-ink p-4 text-paper transition-transform duration-300 lg:relative lg:translate-x-0 ${
-          sidebarOpen ? "translate-x-0" : "-translate-x-full lg:translate-x-0"
-        } flex lg:flex`}
+        className={`
+          fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-y-auto border-r border-ink/10 bg-ink p-4 text-paper
+          w-60 shrink-0
+          -translate-x-full
+          transition-transform duration-300
+          ${sidebarOpen ? "translate-x-0" : ""}
+          xl:relative xl:z-auto xl:translate-x-0 xl:transition-all
+          ${collapsed ? "xl:w-20" : "xl:w-60"}
+        `}
       >
-        <div className="mb-8">
-          <Logo variant="wordmark" className="h-10 w-auto invert" />
-          <p className="mt-2 text-xs tracking-[0.3em] uppercase text-ink/30">Admin Panel</p>
+        <div className={`flex w-full items-center justify-${collapsed ? "center" : "end"}`}>
+          <button
+            type="button"
+            onClick={() => setCollapsed(!collapsed)}
+            className="shrink-0 rounded p-1.5 text-paper/50 hover:bg-ink/10 hover:text-paper"
+            aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+          >
+            <span aria-hidden>{collapsed ? "→" : "←"}</span>
+          </button>
         </div>
-        <nav className="space-y-1">
-          {navItems.map((item) => (
-            <Link
-              key={item.href}
-              href={item.href}
-              onClick={() => setSidebarOpen(false)}
-              className={`flex items-center gap-3 rounded px-3 py-2.5 text-sm transition-colors hover:bg-ink/10 ${
-                isActive(pathname, item.href) ? "bg-ink/10 font-medium" : ""
-              }`}
-            >
-              <span className="w-5 text-center text-base">{item.icon}</span>
-              {item.label}
-            </Link>
-          ))}
+        <p className="mt-3 text-center text-xs tracking-[0.3em] uppercase text-ink/30">Admin Panel</p>
+
+        <nav className="mt-6 space-y-1">
+          {navItems.map((item) => {
+            const active = isActive(pathname, item.href);
+            return (
+              <Link
+                key={item.href}
+                href={item.href}
+                onClick={() => setSidebarOpen(false)}
+                className={`flex items-center gap-3 rounded px-3 py-2.5 text-sm transition-colors hover:bg-ink/10 ${
+                  active ? "bg-ink/10 font-medium" : ""
+                } ${collapsed ? "justify-center" : ""}`}
+                title={collapsed ? item.label : undefined}
+              >
+                <span className="w-5 text-center text-base" aria-hidden="true">
+                  {item.icon}
+                </span>
+                {!collapsed && <span>{item.label}</span>}
+              </Link>
+            );
+          })}
         </nav>
+
         <div className="mt-auto border-t border-ink/10 pt-4">
           <button
             type="button"
             onClick={() => void logout()}
             className="flex w-full items-center gap-3 rounded px-3 py-2.5 text-left text-sm text-red-200 transition-colors hover:bg-ink/10"
+            title={collapsed ? "Logout" : undefined}
           >
             <span className="w-5 text-center text-base">🚪</span>
-            Logout
+            {!collapsed && <span>Logout</span>}
           </button>
         </div>
       </aside>
 
+      {/* Main content: takes remaining width on desktop, full width on mobile */}
       <div className="flex-1 overflow-x-hidden">
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-ink/10 bg-paper px-4 shadow-sm sm:px-6">
           <div className="flex items-center gap-3">
             <button
               type="button"
               onClick={() => setSidebarOpen(true)}
-              className="text-ink hover:text-camel-dark lg:hidden"
+              className="text-ink hover:text-camel-dark xl:hidden"
               aria-label="Open menu"
+              aria-expanded={sidebarOpen}
             >
               <span className="text-xl">☰</span>
             </button>
+            <button
+              type="button"
+              onClick={() => setCollapsed(!collapsed)}
+              className="hidden text-ink hover:text-camel-dark xl:inline-flex"
+              aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              aria-expanded={!collapsed}
+            >
+              <span className="text-xl">{collapsed ? "→" : "←"}</span>
+            </button>
             <h1 className="font-serif text-2xl">{currentLabel}</h1>
           </div>
-          <div className="text-sm text-ink-soft">
-            Logged in as {user.fullName}
+          <div className="flex items-center gap-3 text-sm text-ink-soft">
+            <span>Logged in as {user.fullName}</span>
           </div>
         </header>
         <main className="p-4 sm:p-6 md:p-8">{children}</main>

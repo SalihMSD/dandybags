@@ -6,7 +6,7 @@ export type CartLine = {
   name: string;
   qty: number;
   image: string;
-  sellingPrice: number | null;
+  sellingPrice: number;
 };
 
 const KEY = "dandy-cart";
@@ -27,6 +27,9 @@ export function writeCart(lines: CartLine[], silent = false) {
 }
 
 export function addToCart(product: Product, qty = 1) {
+  if (product.sellingPrice == null) {
+    throw new Error("This product does not have a valid price yet.");
+  }
   const lines = readCart();
   const i = lines.findIndex((l) => l.sku === product.sku);
   if (i >= 0) lines[i].qty += qty;
@@ -40,6 +43,15 @@ export function addToCart(product: Product, qty = 1) {
       sellingPrice: product.sellingPrice,
     });
   writeCart(lines);
+}
+
+export function addToCartSafe(product: Product, qty = 1): { ok: true } | { ok: false; error: string } {
+  try {
+    addToCart(product, qty);
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : "Could not add to cart." };
+  }
 }
 
 export function setQty(sku: string, qty: number) {

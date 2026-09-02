@@ -1,9 +1,7 @@
 import type { Metadata, Viewport } from "next";
 import { Cormorant_Garamond, Outfit } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
-import { CartFloatingButton } from "@/components/CartFloatingButton";
-import { Footer } from "@/components/Footer";
-import { Header } from "@/components/Header";
+import { StorefrontShell } from "@/components/StorefrontShell";
 import { site } from "@/lib/site";
 import "./globals.css";
 
@@ -30,7 +28,7 @@ export const viewport: Viewport = {
 };
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://dandy-bags-staging.vercel.app"),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_SITE_URL || "https://dandyonline.in"),
   title: {
     default: "DANDY — Bags for every journey | Bag shop Karur",
     template: "%s | DANDY",
@@ -88,10 +86,7 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en">
       <body className={`${serif.variable} ${sans.variable} font-sans antialiased`}>
         <AuthProvider>
-          <Header />
-          <main className="min-w-0">{children}</main>
-          <Footer />
-          <CartFloatingButton />
+          <StorefrontShell>{children}</StorefrontShell>
         </AuthProvider>
       </body>
     </html>

@@ -23,34 +23,48 @@ const statusColor: Record<string, string> = {
   PENDING: "bg-cream text-ink-soft",
   PAID: "bg-camel/20 text-ink",
   PLACED: "bg-ink/10 text-ink",
+  CONFIRMED: "bg-camel/20 text-ink",
+  SHIPPED: "bg-camel/20 text-ink",
+  DELIVERED: "bg-green-50 text-green-800",
   CANCELLED: "bg-red-50 text-red-800",
 };
 
 export default function OrdersPage() {
   const [orders, setOrders] = useState<Order[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
   const [reviewStatuses, setReviewStatuses] = useState<Map<string, ReviewStatus>>(new Map());
   const [modalOrderId, setModalOrderId] = useState<string | null>(null);
   const [modalProduct, setModalProduct] = useState<{ sku: string; name: string; reviewId?: string | null } | null>(null);
 
   useEffect(() => {
     void fetch("/api/customer/orders", { credentials: "include" })
-      .then((r) => r.json())
-      .then((d: { orders: Order[] }) => {
+      .then(async (r) => {
+        if (!r.ok) {
+          const data = await r.json();
+          setError(data.error || "Failed to load orders.");
+          return;
+        }
+        const d: { orders: Order[] } = await r.json();
         const ordersList = d.orders || [];
         setOrders(ordersList);
-        const statuses = new Map<string, ReviewStatus>();
+
         for (const order of ordersList) {
           if (order.paymentStatus === "PAID") {
             void fetch(`/api/customer/orders/${order.id}/reviews`, { credentials: "include" })
-              .then((r) => r.json())
+              .then((r2) => r2.json())
               .then((status: ReviewStatus) => {
-                statuses.set(status.orderId, status);
-                setReviewStatuses(new Map(statuses));
+                setReviewStatuses((prev) => {
+                  const next = new Map(prev);
+                  next.set(status.orderId, status);
+                  return next;
+                });
               })
               .catch(() => undefined);
           }
         }
-      });
+      })
+      .finally(() => setLoading(false));
   }, []);
 
   function openReviewModal(orderId: string, sku: string, name: string, reviewId: string | null) {
@@ -60,9 +74,9 @@ export default function OrdersPage() {
 
   function getReviewButton(order: Order, item: Order["items"][0]) {
     const status = reviewStatuses.get(order.id)?.items.find((i) => i.sku === item.sku);
-    const reviewStatus = status?.reviewStatus || "NOT_REVIEWED";
+    const reviewStatusValue = status?.reviewStatus || "NOT_REVIEWED";
 
-    if (reviewStatus === "APPROVED") {
+    if (reviewStatusValue === "APPROVED") {
       return (
         <button
           type="button"
@@ -73,10 +87,10 @@ export default function OrdersPage() {
         </button>
       );
     }
-    if (reviewStatus === "PENDING") {
+    if (reviewStatusValue === "PENDING") {
       return <span className="text-xs text-ink-soft">Review pending</span>;
     }
-    if (reviewStatus === "HIDDEN") {
+    if (reviewStatusValue === "HIDDEN") {
       return <span className="text-xs text-ink-soft">Review hidden</span>;
     }
     return (
@@ -90,11 +104,37 @@ export default function OrdersPage() {
     );
   }
 
+  if (loading) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
+        <h1 className="font-serif text-4xl">My Orders</h1>
+        <p className="mt-6 text-sm text-ink-soft">Loading your orders…</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
+        <h1 className="font-serif text-4xl">My Orders</h1>
+        <p className="mt-6 text-sm text-red-800">{error}</p>
+        <button onClick={() => window.location.reload()} className="mt-4 h-10 bg-ink px-4 text-[11px] tracking-[0.16em] uppercase text-paper">
+          Retry
+        </button>
+      </div>
+    );
+  }
+
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
       <h1 className="font-serif text-4xl">My Orders</h1>
       {orders.length === 0 ? (
-        <p className="mt-8 text-sm text-ink-soft">No orders yet.</p>
+        <div className="mt-8 rounded border border-ink/10 bg-paper p-8 text-center">
+          <p className="text-sm text-ink-soft">You haven't placed any orders yet.</p>
+          <Link href="/shop" className="mt-4 inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase">
+            Shop Bags
+          </Link>
+        </div>
       ) : (
         <ul className="mt-8 space-y-4">
           {orders.map((o) => (
@@ -109,23 +149,20 @@ export default function OrdersPage() {
                 </span>
               </Link>
               <div className="px-4 py-3">
-                {o.items.map((i) => {
-                  const status = reviewStatuses.get(o.id)?.items.find((s) => s.sku === i.sku);
-                  return (
-                    <div key={i.sku} className="flex items-center gap-3 py-2">
-                      <div className="relative aspect-square w-10 shrink-0 overflow-hidden bg-cream">
-                        <AssetImage src={i.image} alt={i.name} fill className="object-cover object-center" sizes="40px" />
-                      </div>
-                      <div className="flex-1 text-sm">
-                        <p className="line-clamp-1">{i.name}</p>
-                        <p className="text-xs text-ink-soft">Qty: {i.qty}</p>
-                      </div>
-                      {o.paymentStatus === "PAID" && (
-                        <div className="shrink-0">{getReviewButton(o, i)}</div>
-                      )}
+                {o.items.map((i) => (
+                  <div key={i.sku} className="flex items-center gap-3 py-2">
+                    <div className="relative aspect-square w-10 shrink-0 overflow-hidden bg-cream">
+                      <AssetImage src={i.image} alt={i.name} fill className="object-cover object-center" sizes="40px" />
                     </div>
-                  );
-                })}
+                    <div className="flex-1 text-sm">
+                      <p className="line-clamp-1">{i.name}</p>
+                      <p className="text-xs text-ink-soft">Qty: {i.qty}</p>
+                    </div>
+                    {o.paymentStatus === "PAID" && o.orderStatus === "DELIVERED" && (
+                      <div className="shrink-0">{getReviewButton(o, i)}</div>
+                    )}
+                  </div>
+                ))}
               </div>
               <div className="flex items-center justify-between border-t border-ink/5 px-4 py-3 text-sm">
                 <span className="text-ink-soft">{o.orderStatus}</span>
@@ -149,20 +186,16 @@ export default function OrdersPage() {
           onSuccess={() => {
             setModalOrderId(null);
             setModalProduct(null);
-            for (const order of orders) {
-              if (order.id === modalOrderId) {
-                void fetch(`/api/customer/orders/${order.id}/reviews`, { credentials: "include" })
-                  .then((r) => r.json())
-                  .then((status: ReviewStatus) => {
-                    setReviewStatuses((prev) => {
-                      const next = new Map(prev);
-                      next.set(status.orderId, status);
-                      return next;
-                    });
-                  })
-                  .catch(() => undefined);
-              }
-            }
+            void fetch(`/api/customer/orders/${modalOrderId}/reviews`, { credentials: "include" })
+              .then((r) => r.json())
+              .then((status: ReviewStatus) => {
+                setReviewStatuses((prev) => {
+                  const next = new Map(prev);
+                  next.set(status.orderId, status);
+                  return next;
+                });
+              })
+              .catch(() => undefined);
           }}
         />
       )}

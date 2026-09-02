@@ -1,6 +1,14 @@
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { requireAdmin } from "@/lib/auth/session";
-import { listAdminProducts, createAdminProduct, findProductBySku, findProductBySlug } from "@/lib/db/admin-products";
+import {
+  listAdminProductsPaginated,
+  listAdminProducts,
+  createAdminProduct,
+  findProductBySku,
+  findProductBySlug,
+  bulkUpdateProducts,
+  bulkDeleteProducts,
+} from "@/lib/db/admin-products";
 import { newId } from "@/lib/db/store";
 import { revalidatePath } from "next/cache";
 
@@ -14,15 +22,33 @@ async function revalidateProductPaths(category?: string, slug?: string) {
   if (slug) revalidatePath(`/shop/${slug}`);
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   try {
     await requireAdmin();
   } catch {
     return jsonError("Access denied.", 403);
   }
-  try {
+
+  const { searchParams } = new URL(request.url);
+  const usePaginated = searchParams.has("page") || searchParams.has("search") || searchParams.has("category") || searchParams.has("b2cAvailable") || searchParams.has("stockStatus") || searchParams.has("sortBy");
+
+  if (!usePaginated) {
     const products = await listAdminProducts();
     return Response.json({ products });
+  }
+
+  try {
+    const result = await listAdminProductsPaginated({
+      search: searchParams.get("search") || undefined,
+      category: searchParams.get("category") || undefined,
+      b2cAvailable: searchParams.get("b2cAvailable") || undefined,
+      stockStatus: searchParams.get("stockStatus") || undefined,
+      sortBy: searchParams.get("sortBy") || undefined,
+      sortDir: searchParams.get("sortDir") || undefined,
+      page: Number(searchParams.get("page") || "1"),
+      pageSize: Number(searchParams.get("pageSize") || "20"),
+    });
+    return Response.json(result);
   } catch {
     return jsonError("Something went wrong. Please try again.", 500);
   }
@@ -137,5 +163,71 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Failed to create product:", error);
     return jsonError("Something went wrong. Please try again.", 500);
+  }
+}
+
+export async function PATCH(request: Request) {
+  if (!originOk(request)) return jsonError("Invalid request.", 403);
+  try {
+    await requireAdmin();
+  } catch {
+    return jsonError("Access denied.", 403);
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return jsonError("Something went wrong. Please try again.", 400);
+  }
+
+  const ids = Array.isArray(body.ids) ? body.ids : [];
+  if (!ids.length) {
+    return jsonError("No product IDs provided.", 400);
+  }
+
+  const data: Record<string, unknown> = {};
+  if (body.b2cAvailable !== undefined) data.b2cAvailable = body.b2cAvailable === true;
+  if (body.stock !== undefined) data.stock = body.stock === "" ? null : Number(body.stock);
+  if (body.featured !== undefined) data.featured = body.featured === true;
+
+  if (Object.keys(data).length === 0) {
+    return jsonError("No valid fields to update.", 400);
+  }
+
+  try {
+    await bulkUpdateProducts(ids as string[], data);
+    return Response.json({ ok: true, count: ids.length });
+  } catch {
+    return jsonError("Something went wrong. Please try again.", 500);
+  }
+}
+
+export async function DELETE(request: Request) {
+  if (!originOk(request)) return jsonError("Invalid request.", 403);
+  try {
+    await requireAdmin();
+  } catch {
+    return jsonError("Access denied.", 403);
+  }
+
+  let body: Record<string, unknown>;
+  try {
+    body = (await request.json()) as Record<string, unknown>;
+  } catch {
+    return jsonError("Something went wrong. Please try again.", 400);
+  }
+
+  const ids = Array.isArray(body.ids) ? body.ids : [];
+  if (!ids.length) {
+    return jsonError("No product IDs provided.", 400);
+  }
+
+  try {
+    await bulkDeleteProducts(ids as string[]);
+    return Response.json({ ok: true, count: ids.length });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "Something went wrong. Please try again.";
+    return jsonError(message, 409);
   }
 }

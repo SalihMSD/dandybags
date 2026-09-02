@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import Link from "next/link";
 
 type ShareReward = {
   id: string;
@@ -9,18 +10,15 @@ type ShareReward = {
   userEmail: string;
   orderId: string;
   rewardType: string;
-  status: string;
+  status: "PENDING" | "APPROVED" | "REJECTED";
   storyProofUrl: string | null;
   postProofUrl: string | null;
   instagramUsername: string;
-  taggedAccount: string;
   submittedAt: string;
   reviewedAt: string | null;
   reviewedBy: string | null;
   couponId: string | null;
   rejectionReason: string | null;
-  createdAt: string;
-  updatedAt: string;
   sourceBillAmount: number;
   orderPaymentStatus: string | null;
 };
@@ -34,20 +32,13 @@ export default function AdminShareRewards() {
 
   async function load() {
     setLoading(true);
-    try {
-      const url = new URL("/api/admin/share-rewards", window.location.origin);
-      if (filter) url.searchParams.set("status", filter);
+    const params = new URLSearchParams();
+    if (filter) params.set("status", filter);
 
-      const res = await fetch(url.toString(), { credentials: "include" });
-      const data = (await res.json()) as { rewards?: ShareReward[]; error?: string };
-      if (res.ok) {
-        setRewards(data.rewards || []);
-      }
-    } catch {
-      // ignore
-    } finally {
-      setLoading(false);
-    }
+    const res = await fetch(`/api/admin/share-rewards?${params.toString()}`, { credentials: "include" });
+    const data = (await res.json()) as { rewards?: ShareReward[]; error?: string };
+    if (res.ok) setRewards(data.rewards || []);
+    setLoading(false);
   }
 
   useEffect(() => {
@@ -56,25 +47,20 @@ export default function AdminShareRewards() {
 
   async function approve(rewardId: string, action: "approve_5" | "approve_10") {
     setActionLoading(rewardId);
-    try {
-      const res = await fetch("/api/admin/share-rewards", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ rewardId, action }),
-      });
-      const data = (await res.json()) as { ok?: boolean; couponCode?: string; error?: string };
-      if (res.ok && data.ok) {
-        alert(`Coupon generated: ${data.couponCode}`);
-        await load();
-      } else {
-        alert(data.error || "Action failed.");
-      }
-    } catch {
-      alert("Something went wrong.");
-    } finally {
-      setActionLoading(null);
+    const res = await fetch("/api/admin/share-rewards", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ rewardId, action }),
+    });
+    const data = (await res.json()) as { ok?: boolean; couponCode?: string; error?: string };
+    if (res.ok && data.ok) {
+      alert(`Coupon generated: ${data.couponCode}`);
+      await load();
+    } else {
+      alert(data.error || "Action failed.");
     }
+    setActionLoading(null);
   }
 
   async function reject(rewardId: string) {
@@ -84,38 +70,39 @@ export default function AdminShareRewards() {
       return;
     }
     setActionLoading(rewardId);
-    try {
-      const res = await fetch("/api/admin/share-rewards", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        credentials: "include",
-        body: JSON.stringify({ rewardId, action: "reject", reason }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string };
-      if (res.ok && data.ok) {
-        await load();
-      } else {
-        alert(data.error || "Action failed.");
-      }
-    } catch {
-      alert("Something went wrong.");
-    } finally {
-      setActionLoading(null);
+    const res = await fetch("/api/admin/share-rewards", {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      credentials: "include",
+      body: JSON.stringify({ rewardId, action: "reject", reason }),
+    });
+    const data = (await res.json()) as { ok?: boolean; error?: string };
+    if (res.ok && data.ok) {
+      await load();
+    } else {
+      alert(data.error || "Action failed.");
     }
+    setActionLoading(null);
   }
 
-  return (
-    <div className="mx-auto max-w-5xl px-4 py-10 md:px-8">
-      <h1 className="font-serif text-4xl">Share & Earn Moderation</h1>
+  const statusColors = {
+    PENDING: "bg-camel/20 text-ink",
+    APPROVED: "bg-green-50 text-green-800",
+    REJECTED: "bg-red-50 text-red-800",
+  };
 
-      <div className="mt-6 flex items-center gap-4">
-        <label className="text-sm">Filter:</label>
+  const rewardLabel = {
+    STORY_5: "5% OFF",
+    STORY_AND_POST_10: "10% OFF",
+  };
+
+  return (
+    <div className="space-y-6">
+      <div className="flex items-center gap-4">
         <select
           value={filter}
-          onChange={(e) => {
-            setFilter(e.target.value);
-          }}
-          className="border border-ink/15 bg-paper px-3 py-2 text-sm"
+          onChange={(e) => setFilter(e.target.value)}
+          className="rounded border border-ink/10 bg-paper px-3 py-2 text-sm"
         >
           <option value="">All</option>
           <option value="PENDING">Pending</option>
@@ -125,70 +112,98 @@ export default function AdminShareRewards() {
       </div>
 
       {loading ? (
-        <p className="mt-6 text-ink-soft">Loading...</p>
+        <p className="text-sm text-ink-soft">Loading submissions…</p>
       ) : rewards.length === 0 ? (
-        <p className="mt-6 text-ink-soft">No submissions found.</p>
+        <p className="text-sm text-ink-soft">No submissions found.</p>
       ) : (
-        <div className="mt-6 space-y-4">
+        <div className="space-y-4">
           {rewards.map((reward) => (
-            <div key={reward.id} className="border border-ink/10 bg-paper p-4">
+            <div key={reward.id} className="rounded border border-ink/10 bg-paper p-4 sm:p-6">
               <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-                <div className="flex-1">
-                  <p className="font-medium">{reward.userName} ({reward.userEmail})</p>
-                  <p className="text-sm text-ink-soft">Order: {reward.orderId}</p>
-                  <p className="text-sm text-ink-soft">Instagram: @{reward.instagramUsername}</p>
-                  <div className="mt-2 flex items-center gap-2 text-xs">
-                    <span className="rounded bg-cream px-2 py-0.5">{reward.rewardType === "STORY_5" ? "5% OFF" : "10% OFF"}</span>
-                    <span className={`rounded px-2 py-0.5 ${
-                      reward.status === "PENDING" ? "bg-camel/20 text-ink" :
-                      reward.status === "APPROVED" ? "bg-green-50 text-green-800" :
-                      "bg-red-50 text-red-800"
-                    }`}>
+                <div className="flex-1 space-y-2">
+                  <div>
+                    <p className="font-medium">{reward.userName}</p>
+                    <p className="text-sm text-ink-soft">{reward.userEmail}</p>
+                  </div>
+
+                  <div className="flex flex-wrap items-center gap-2 text-xs">
+                    <Link
+                      href={`/admin/orders/${reward.orderId}`}
+                      className="font-mono text-xs text-camel-dark underline"
+                    >
+                      Order: {reward.orderId}
+                    </Link>
+                    <span className="rounded bg-paper border border-ink/10 px-2 py-0.5">
+                      {rewardLabel[reward.rewardType as keyof typeof rewardLabel] || reward.rewardType}
+                    </span>
+                    <span className={`rounded px-2 py-0.5 ${statusColors[reward.status]}`}>
                       {reward.status}
                     </span>
                     {reward.orderPaymentStatus && (
                       <span className={`rounded px-2 py-0.5 ${
-                        reward.orderPaymentStatus === "PAID" ? "bg-green-50 text-green-800" : "bg-red-50 text-red-800"
+                        reward.orderPaymentStatus === "PAID"
+                          ? "bg-green-50 text-green-800"
+                          : "bg-ink/10 text-ink-soft"
                       }`}>
                         {reward.orderPaymentStatus}
                       </span>
                     )}
                   </div>
+
+                  <p className="text-sm text-ink-soft">Instagram: @{reward.instagramUsername}</p>
                   {reward.sourceBillAmount > 0 && (
-                    <p className="mt-2 text-sm">
-                      Paid bill: <strong>{new Intl.NumberFormat("en-IN", { style: "currency", currency: "INR", maximumFractionDigits: 0 }).format(reward.sourceBillAmount)}</strong>
+                    <p className="text-sm">
+                      Bill amount: <strong>₹{reward.sourceBillAmount.toLocaleString("en-IN")}</strong>
                     </p>
                   )}
-                  {reward.storyProofUrl && (
-                    <a href={reward.storyProofUrl} target="_blank" rel="noreferrer" className="mt-2 block text-xs text-camel-dark underline">
-                      Story Proof
-                    </a>
-                  )}
-                  {reward.postProofUrl && (
-                    <a href={reward.postProofUrl} target="_blank" rel="noreferrer" className="mt-1 block text-xs text-camel-dark underline">
-                      Post Proof
-                    </a>
-                  )}
+
+                  <div className="flex flex-wrap gap-4">
+                    {reward.storyProofUrl && (
+                      <a
+                        href={reward.storyProofUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-camel-dark underline"
+                      >
+                        Story Proof →
+                      </a>
+                    )}
+                    {reward.postProofUrl && (
+                      <a
+                        href={reward.postProofUrl}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="text-xs text-camel-dark underline"
+                      >
+                        Post Proof →
+                      </a>
+                    )}
+                  </div>
+
                   {reward.rejectionReason && (
-                    <p className="mt-2 text-xs text-red-800">Reason: {reward.rejectionReason}</p>
+                    <p className="text-xs text-red-800">Reason: {reward.rejectionReason}</p>
                   )}
                   {reward.couponId && (
-                    <p className="mt-2 text-xs text-green-800">Coupon generated</p>
+                    <p className="text-xs text-green-800">Coupon generated</p>
+                  )}
+                  {reward.reviewedAt && (
+                    <p className="text-xs text-ink-soft">
+                      Reviewed: {new Date(reward.reviewedAt).toLocaleString("en-IN")}
+                    </p>
                   )}
                 </div>
+
                 {reward.status === "PENDING" && (
                   <div className="flex flex-col gap-2 sm:w-48">
                     <button
-                      type="button"
-                      onClick={() => approve(reward.id, "approve_5")}
+                      onClick={() => void approve(reward.id, "approve_5")}
                       disabled={actionLoading === reward.id || reward.orderPaymentStatus !== "PAID"}
                       className="h-8 bg-camel px-3 text-[10px] tracking-[0.14em] uppercase disabled:opacity-60"
                     >
                       Approve 5%
                     </button>
                     <button
-                      type="button"
-                      onClick={() => approve(reward.id, "approve_10")}
+                      onClick={() => void approve(reward.id, "approve_10")}
                       disabled={actionLoading === reward.id || reward.orderPaymentStatus !== "PAID"}
                       className="h-8 border border-ink px-3 text-[10px] tracking-[0.14em] uppercase disabled:opacity-60"
                     >
@@ -201,8 +216,7 @@ export default function AdminShareRewards() {
                       className="border border-ink/15 bg-paper px-3 py-2 text-xs"
                     />
                     <button
-                      type="button"
-                      onClick={() => reject(reward.id)}
+                      onClick={() => void reject(reward.id)}
                       disabled={actionLoading === reward.id}
                       className="h-8 border border-red-800 px-3 text-[10px] tracking-[0.14em] uppercase text-red-800 disabled:opacity-60"
                     >

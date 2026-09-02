@@ -6,7 +6,7 @@ import { site } from "@/lib/site";
 export const dynamic = "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://dandy-bags-staging.vercel.app";
+  const base = process.env.NEXT_PUBLIC_SITE_URL || "https://dandyonline.in";
 
   const staticRoutes: MetadataRoute.Sitemap = [
     { url: base, lastModified: new Date(), changeFrequency: "daily", priority: 1 },

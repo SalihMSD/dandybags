@@ -2,6 +2,9 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { AssetImage } from "@/components/AssetImage";
+import { ProductForm } from "@/components/admin/ProductForm";
+import { formatInr } from "@/lib/format";
 
 type Product = {
   id: string;
@@ -11,87 +14,29 @@ type Product = {
   category: string;
   subcategory: string;
   sellingPrice: string | null;
+  mrp: string | null;
   stock: number | null;
   b2cAvailable: boolean;
   featured: boolean;
-  imageFront: string;
-  imageBack: string;
-  imageLeft: string;
-  imageRight: string;
-  imageTop: string;
   discountPercent: number;
+  imageFront: string;
   createdAt: string;
   updatedAt: string;
 };
 
-type FormState = {
-  id?: string;
-  name: string;
-  sku: string;
-  slug: string;
-  category: string;
-  subcategory: string;
-  sellingPrice: string;
-  stock: string;
-  b2cAvailable: boolean;
-  featured: boolean;
-  masterImage: string;
-  sideImage1: string;
-  sideImage2: string;
-  sideImage3: string;
-  sideImage4: string;
-  colour: string;
-  material: string;
-  weight: string;
-  length: string;
-  width: string;
-  height: string;
-  capacity: string;
-  compartments: string;
-  features: string;
-  description: string;
-  seoTitle: string;
-  seoDescription: string;
-  mrp: string;
-  discountPercent: string;
+type PaginatedResponse = {
+  products: Product[];
+  total: number;
+  page: number;
+  pageSize: number;
+  totalPages: number;
 };
 
-const emptyForm: FormState = {
-  name: "",
-  sku: "",
-  slug: "",
-  category: "school-bags",
-  subcategory: "",
-  sellingPrice: "",
-  stock: "",
-  b2cAvailable: true,
-  featured: false,
-  masterImage: "",
-  sideImage1: "",
-  sideImage2: "",
-  sideImage3: "",
-  sideImage4: "",
-  colour: "",
-  material: "",
-  weight: "",
-  length: "",
-  width: "",
-  height: "",
-  capacity: "",
-  compartments: "",
-  features: "",
-  description: "",
-  seoTitle: "",
-  seoDescription: "",
-  mrp: "",
-  discountPercent: "0",
-};
-
-const categories = [
+const CATEGORIES = [
   "school-bags",
   "college-bags",
   "backpacks",
-  "travel-bags",
+  " travel-bags",
   "sling-bags",
   "handbags",
   "ladies-purses",
@@ -99,352 +44,381 @@ const categories = [
 
 export default function AdminProducts() {
   const [products, setProducts] = useState<Product[]>([]);
-  const [error, setError] = useState("");
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
-  const [form, setForm] = useState<FormState>(emptyForm);
-  const [editing, setEditing] = useState(false);
+  const [error, setError] = useState("");
   const [showForm, setShowForm] = useState(false);
+  const [editingId, setEditingId] = useState<string | null>(null);
+  const [total, setTotal] = useState(0);
+  const [totalPages, setTotalPages] = useState(1);
+  const [page, setPage] = useState(1);
+
+  const [search, setSearch] = useState("");
+  const [categoryFilter, setCategoryFilter] = useState("all");
+  const [b2cFilter, setB2cFilter] = useState("all");
+  const [stockFilter, setStockFilter] = useState("all");
+  const [sortBy, setSortBy] = useState("created");
+  const [sortDir, setSortDir] = useState("desc");
+
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [bulkAction, setBulkAction] = useState("");
+  const [bulkStockValue, setBulkStockValue] = useState("");
+  const [actionLoading, setActionLoading] = useState(false);
+
+  function buildParams() {
+    const params = new URLSearchParams();
+    params.set("page", String(page));
+    params.set("pageSize", "20");
+    if (search) params.set("search", search);
+    if (categoryFilter && categoryFilter !== "all") params.set("category", categoryFilter);
+    if (b2cFilter && b2cFilter !== "all") params.set("b2cAvailable", b2cFilter);
+    if (stockFilter && stockFilter !== "all") params.set("stockStatus", stockFilter);
+    if (sortBy) params.set("sortBy", sortBy);
+    if (sortDir) params.set("sortDir", sortDir);
+    return params;
+  }
 
   async function load() {
     setLoading(true);
     setError("");
-    const res = await fetch("/api/admin/products", { credentials: "include" });
-    const data = (await res.json()) as { products?: Product[]; error?: string };
-    if (!res.ok) setError(data.error || "Failed to load products.");
-    else setProducts(data.products || []);
+    const params = buildParams();
+    const res = await fetch(`/api/admin/products?${params.toString()}`, { credentials: "include" });
+    const data = (await res.json()) as PaginatedResponse | { error?: string };
+    if (!res.ok) {
+      setError((data as { error?: string }).error || "Failed to load products.");
+    } else {
+      const d = data as PaginatedResponse;
+      setProducts(d.products || []);
+      setTotal(d.total || 0);
+      setTotalPages(d.totalPages || 1);
+    }
     setLoading(false);
   }
 
   useEffect(() => {
     void load();
-  }, []);
+  }, [page, search, categoryFilter, b2cFilter, stockFilter, sortBy, sortDir]);
 
   function openCreate() {
-    setForm(emptyForm);
-    setEditing(false);
+    setEditingId(null);
     setShowForm(true);
   }
 
   function openEdit(product: Product) {
-    setForm({
-      id: product.id,
-      name: product.name,
-      sku: product.sku,
-      slug: product.slug,
-      category: product.category,
-      subcategory: product.subcategory,
-      sellingPrice: product.sellingPrice || "",
-      stock: product.stock !== null ? String(product.stock) : "",
-      b2cAvailable: product.b2cAvailable,
-      featured: product.featured,
-      masterImage: product.imageFront,
-      sideImage1: product.imageBack || "",
-      sideImage2: product.imageLeft || "",
-      sideImage3: product.imageRight || "",
-      sideImage4: product.imageTop || "",
-      colour: "",
-      material: "",
-      weight: "",
-      length: "",
-      width: "",
-      height: "",
-      capacity: "",
-      compartments: "",
-      features: "",
-      description: "",
-      seoTitle: "",
-      seoDescription: "",
-      mrp: "",
-      discountPercent: String(product.discountPercent || 0),
-    });
-    setEditing(true);
+    setEditingId(product.id);
     setShowForm(true);
   }
 
-  async function handleSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
+  function handleSaved() {
+    setShowForm(false);
+    setEditingId(null);
+    void load();
+  }
+
+  function toggleSelect(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }
+
+  function selectAll() {
+    if (selected.size === products.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(products.map((p) => p.id)));
+    }
+  }
+
+  async function runBulkAction() {
+    if (!bulkAction || selected.size === 0) return;
+    setActionLoading(true);
     setError("");
 
-    const mrp = form.mrp ? Number(form.mrp) : null;
-    const discountPercent = form.discountPercent ? Number(form.discountPercent) : 0;
-    let sellingPrice = form.sellingPrice ? Number(form.sellingPrice) : null;
+    let body: Record<string, unknown> = { ids: Array.from(selected) };
 
-    if (mrp !== null && discountPercent > 0) {
-      const calculated = mrp * (1 - discountPercent / 100);
-      sellingPrice = Math.round(calculated * 100) / 100;
+    if (bulkAction === "activate") body.b2cAvailable = true;
+    else if (bulkAction === "deactivate") body.b2cAvailable = false;
+    else if (bulkAction === "set-stock") body.stock = bulkStockValue === "" ? null : Number(bulkStockValue);
+    else if (bulkAction === "delete") {
+      if (!confirm(`Delete ${selected.size} product(s)? This cannot be undone.`)) {
+        setActionLoading(false);
+        return;
+      }
     }
 
-    const payload: Record<string, unknown> = {
-      name: form.name,
-      sku: form.sku,
-      slug: form.slug,
-      category: form.category,
-      subcategory: form.subcategory,
-      sellingPrice: sellingPrice,
-      stock: form.stock === "" ? null : Number(form.stock),
-      b2cAvailable: form.b2cAvailable,
-      featured: form.featured,
-      imageFront: form.masterImage,
-      description: form.description,
-      seoTitle: form.seoTitle,
-      seoDescription: form.seoDescription,
-      discountPercent,
-    };
-
-    if (form.sideImage1) payload.imageBack = form.sideImage1;
-    if (form.sideImage2) payload.imageLeft = form.sideImage2;
-    if (form.sideImage3) payload.imageRight = form.sideImage3;
-    if (form.sideImage4) payload.imageTop = form.sideImage4;
-    if (form.colour) payload.colour = form.colour;
-    if (form.material) payload.material = form.material;
-    if (form.weight) payload.weight = form.weight;
-    if (form.length) payload.length = form.length;
-    if (form.width) payload.width = form.width;
-    if (form.height) payload.height = form.height;
-    if (form.capacity) payload.capacity = form.capacity;
-    if (form.compartments) payload.compartments = form.compartments;
-    if (form.features) payload.features = form.features.split(",").map((s) => s.trim()).filter(Boolean);
-    if (mrp) payload.mrp = mrp;
-
-    const url = editing && form.id ? `/api/admin/products/${form.id}` : "/api/admin/products";
-    const method = editing ? "PATCH" : "POST";
-
-    const res = await fetch(url, {
+    const method = bulkAction === "delete" ? "DELETE" : "PATCH";
+    const res = await fetch("/api/admin/products", {
       method,
       credentials: "include",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload),
+      body: JSON.stringify(body),
     });
 
-    const data = (await res.json()) as { product?: Product; error?: string };
-    if (!res.ok) setError(data.error || "Failed to save product.");
-    else {
-      setEditing(false);
-      setForm(emptyForm);
-      setShowForm(false);
-      await load();
+    const data = await res.json();
+    if (!res.ok) {
+      setError(data.error || "Bulk action failed.");
+    } else {
+      setSelected(new Set());
+      setBulkAction("");
+      void load();
     }
-    setSaving(false);
+    setActionLoading(false);
   }
 
-  async function handleDelete(product: Product) {
-    if (!confirm(`Delete "${product.name}"? This cannot be undone.`)) return;
-    setError("");
-    const res = await fetch(`/api/admin/products/${product.id}`, {
-      method: "DELETE",
-      credentials: "include",
-    });
-    const data = (await res.json()) as { error?: string };
-    if (!res.ok) setError(data.error || "Failed to delete product.");
-    else await load();
+  function getStockDisplay(product: Product) {
+    if (product.stock === null) return { text: "∞ Unlimited", color: "text-ink-soft" };
+    if (product.stock === 0) return { text: "0 — Out of stock", color: "text-red-800 font-medium" };
+    if (product.stock < 10) return { text: `${product.stock} — Low stock`, color: "text-camel-dark font-medium" };
+    return { text: `${product.stock} — In stock`, color: "text-green-800" };
   }
 
-  function updateField<K extends keyof FormState>(key: K, value: FormState[K]) {
-    setForm((prev) => ({ ...prev, [key]: value }));
-  }
+  const stockStatusApplied = stockFilter && stockFilter !== "all";
 
   return (
-    <div className="mx-auto max-w-5xl px-4 py-10 md:px-8">
-      <div className="flex items-end justify-between gap-4">
-        <div>
-          <Link href="/admin" className="text-xs uppercase tracking-[0.16em] underline">
-            Admin
-          </Link>
-          <h1 className="mt-4 font-serif text-4xl">Products</h1>
+    <>
+      <div className="space-y-6">
+        <div className="flex flex-wrap items-center justify-between gap-4">
+          <div className="flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              placeholder="Search by name, SKU, category..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="w-64 rounded border border-ink/10 bg-paper px-3 py-2 text-sm outline-none focus:border-ink"
+            />
+            <select
+              value={categoryFilter}
+              onChange={(e) => { setCategoryFilter(e.target.value); setPage(1); }}
+              className="rounded border border-ink/10 bg-paper px-3 py-2 text-sm"
+            >
+              <option value="all">All Categories</option>
+              {CATEGORIES.map((c) => (
+                <option key={c.trim()} value={c.trim()}>{c.trim()}</option>
+              ))}
+            </select>
+            <select
+              value={b2cFilter}
+              onChange={(e) => { setB2cFilter(e.target.value); setPage(1); }}
+              className="rounded border border-ink/10 bg-paper px-3 py-2 text-sm"
+            >
+              <option value="all">B2C Availability</option>
+              <option value="available">Available for sale</option>
+              <option value="unavailable">Not for sale</option>
+            </select>
+            <select
+              value={stockFilter}
+              onChange={(e) => { setStockFilter(e.target.value); setPage(1); }}
+              className="rounded border border-ink/10 bg-paper px-3 py-2 text-sm"
+            >
+              <option value="all">All Stock</option>
+              <option value="in-stock">In stock</option>
+              <option value="low-stock">Low stock</option>
+              <option value="out-of-stock">Out of stock</option>
+              <option value="unlimited">Unlimited</option>
+            </select>
+            <select
+              value={`${sortBy}-${sortDir}`}
+              onChange={(e) => {
+                const [s, d] = e.target.value.split("-");
+                setSortBy(s);
+                setSortDir(d);
+              }}
+              className="rounded border border-ink/10 bg-paper px-3 py-2 text-sm"
+            >
+              <option value="created-desc">Newest first</option>
+              <option value="created-asc">Oldest first</option>
+              <option value="name-asc">Name A-Z</option>
+              <option value="name-desc">Name Z-A</option>
+              <option value="price-asc">Price low to high</option>
+              <option value="price-desc">Price high to low</option>
+              <option value="stock-asc">Stock low to high</option>
+              <option value="stock-desc">Stock high to low</option>
+            </select>
+          </div>
+          <button
+            onClick={openCreate}
+            className="h-10 bg-ink px-4 text-[11px] tracking-[0.16em] uppercase text-paper"
+          >
+            Add Product
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={openCreate}
-          className="h-10 bg-ink px-4 text-[11px] tracking-[0.16em] uppercase text-paper"
-        >
-          Add Product
-        </button>
-      </div>
 
-      {error ? <p className="mt-6 text-sm text-red-800">{error}</p> : null}
+        {selected.size > 0 && (
+          <div className="flex items-center gap-3 rounded border border-ink/10 bg-paper px-4 py-3">
+            <span className="text-sm">{selected.size} selected</span>
+            <select
+              value={bulkAction}
+              onChange={(e) => setBulkAction(e.target.value)}
+              className="rounded border border-ink/10 bg-paper px-3 py-1.5 text-sm"
+            >
+              <option value="">Bulk actions…</option>
+              <option value="activate">Activate (B2C available)</option>
+              <option value="deactivate">Deactivate (B2C unavailable)</option>
+              <option value="set-stock">Update Stock</option>
+              <option value="delete">Delete (confirm required)</option>
+            </select>
+            {bulkAction === "set-stock" && (
+              <input
+                type="number"
+                value={bulkStockValue}
+                onChange={(e) => setBulkStockValue(e.target.value)}
+                placeholder="Stock (empty = unlimited)"
+                className="w-40 rounded border border-ink/10 bg-paper px-2 py-1 text-sm outline-none focus:border-ink"
+              />
+            )}
+            <button
+              onClick={runBulkAction}
+              disabled={actionLoading || !bulkAction}
+              className="h-8 bg-camel px-3 text-[10px] tracking-[0.14em] uppercase disabled:opacity-60"
+            >
+              {actionLoading ? "Applying…" : "Apply"}
+            </button>
+            <button
+              onClick={() => {
+                setSelected(new Set());
+                setBulkAction("");
+                setBulkStockValue("");
+              }}
+              className="text-xs underline"
+            >
+              Clear
+            </button>
+          </div>
+        )}
 
-      <div className="mt-8 overflow-x-auto">
-        <table className="w-full text-left text-sm">
-          <thead>
-            <tr className="border-b border-ink/10">
-              <th className="py-2">Name</th>
-              <th>SKU</th>
-              <th>Category</th>
-              <th>Price</th>
-              <th>Stock</th>
-              <th>B2C</th>
-              <th>Featured</th>
-              <th className="text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={8} className="py-6 text-ink-soft">Loading...</td></tr>
-            ) : products.length === 0 ? (
-              <tr><td colSpan={8} className="py-6 text-ink-soft">No products yet.</td></tr>
-            ) : (
-              products.map((p) => (
-                <tr key={p.id} className="border-b border-ink/5">
-                  <td className="py-3">
-                    <p className="font-serif">{p.name}</p>
-                    <p className="text-xs text-ink-soft">{p.slug}</p>
-                  </td>
-                  <td className="font-mono text-xs">{p.sku}</td>
-                  <td>{p.category}</td>
-                  <td>{p.sellingPrice ? `₹${Number(p.sellingPrice).toLocaleString("en-IN")}` : "—"}</td>
-                  <td>{p.stock !== null ? p.stock : "∞"}</td>
-                  <td>{p.b2cAvailable ? "Yes" : "No"}</td>
-                  <td>{p.featured ? "Yes" : "No"}</td>
-                  <td className="space-x-3 text-right">
-                    <button type="button" onClick={() => openEdit(p)} className="underline">Edit</button>
-                    <button type="button" onClick={() => handleDelete(p)} className="text-red-800 underline">Delete</button>
+        {error ? <p className="text-sm text-red-800">{error}</p> : null}
+
+        <div className="overflow-x-auto rounded border border-ink/10">
+          <table className="w-full min-w-[1000px] text-left text-sm">
+            <thead>
+              <tr className="border-b border-ink/10">
+                <th className="py-2">
+                  <input
+                    type="checkbox"
+                    checked={products.length > 0 && selected.size === products.length}
+                    onChange={selectAll}
+                    disabled={loading}
+                  />
+                </th>
+                <th className="py-2">Product</th>
+                <th>SKU</th>
+                <th>Category</th>
+                <th>Price</th>
+                <th>MRP</th>
+                <th>Stock</th>
+                <th>B2C</th>
+                <th>Created</th>
+                <th className="text-right">Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={10} className="py-6 text-center text-ink-soft">Loading products…</td>
+                </tr>
+              ) : products.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="py-6 text-center text-ink-soft">
+                    {search || stockStatusApplied || categoryFilter !== "all" || b2cFilter !== "all"
+                      ? "No products match your filters."
+                      : "No products found."}
                   </td>
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+              ) : (
+                products.map((p) => {
+                  const stock = getStockDisplay(p);
+                  return (
+                    <tr key={p.id} className="border-b border-ink/5">
+                      <td className="py-2">
+                        <input
+                          type="checkbox"
+                          checked={selected.has(p.id)}
+                          onChange={() => toggleSelect(p.id)}
+                        />
+                      </td>
+                      <td className="py-3">
+                        <div className="flex items-center gap-3">
+                          <div className="relative aspect-[4/5] h-12 w-12 overflow-hidden bg-cream">
+                            <AssetImage src={p.imageFront} alt={p.name} fill className="object-cover object-center" sizes="48px" />
+                          </div>
+                          <div>
+                            <p className="font-serif">{p.name}</p>
+                            <p className="text-xs text-ink-soft">{p.slug}</p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="font-mono text-xs">{p.sku}</td>
+                      <td className="text-ink-soft">{p.category}</td>
+                      <td>{p.sellingPrice ? formatInr(Number(p.sellingPrice)) : "—"}</td>
+                      <td>{p.mrp ? formatInr(Number(p.mrp)) : "—"}</td>
+                      <td>
+                        <span className={stock.color}>{stock.text}</span>
+                      </td>
+                      <td>{p.b2cAvailable ? "Yes" : "No"}</td>
+                      <td className="text-ink-soft">
+                        {new Date(p.createdAt).toLocaleDateString("en-IN")}
+                      </td>
+                      <td className="text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <Link
+                            href={`/shop/${p.slug}`}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            title="View storefront"
+                            className="text-xs underline"
+                          >
+                            Preview
+                          </Link>
+                          <button onClick={() => openEdit(p)} className="text-xs underline">
+                            Edit
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
 
-      {(showForm) && (
-        <div className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4">
-          <form onSubmit={handleSubmit} className="mt-10 w-full max-w-2xl rounded bg-paper p-6 shadow">
-            <div className="flex items-center justify-between">
-              <h2 className="font-serif text-2xl">{editing ? "Edit Product" : "New Product"}</h2>
-              <button type="button" onClick={() => { setEditing(false); setForm(emptyForm); setShowForm(false); }} className="text-sm underline">Close</button>
-            </div>
-
-            <div className="mt-6 grid gap-4 sm:grid-cols-2">
-              <label className="block text-sm">
-                Name *
-                <input required value={form.name} onChange={(e) => updateField("name", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                SKU *
-                <input required value={form.sku} onChange={(e) => updateField("sku", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm font-mono" />
-              </label>
-              <label className="block text-sm">
-                Slug *
-                <input required value={form.slug} onChange={(e) => updateField("slug", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm font-mono" />
-              </label>
-              <label className="block text-sm">
-                Category *
-                <select value={form.category} onChange={(e) => updateField("category", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm">
-                  {categories.map((c) => (
-                    <option key={c} value={c}>{c}</option>
-                  ))}
-                </select>
-              </label>
-              <label className="block text-sm">
-                Subcategory
-                <input value={form.subcategory} onChange={(e) => updateField("subcategory", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                MRP (₹)
-                <input type="number" step="0.01" value={form.mrp} onChange={(e) => updateField("mrp", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Discount %
-                <input type="number" step="1" min="0" max="100" value={form.discountPercent} onChange={(e) => updateField("discountPercent", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Selling Price (₹)
-                <input type="number" step="0.01" value={form.sellingPrice} readOnly className="mt-1 w-full border border-ink/10 bg-cream px-3 py-2 text-sm" />
-                <p className="text-xs text-ink-soft">Auto-calculated from MRP and discount.</p>
-              </label>
-              <label className="block text-sm">
-                Stock (leave empty for unlimited)
-                <input type="number" value={form.stock} onChange={(e) => updateField("stock", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Master Image *
-                <input required value={form.masterImage} onChange={(e) => updateField("masterImage", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Product View 1
-                <input value={form.sideImage1} onChange={(e) => updateField("sideImage1", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Product View 2
-                <input value={form.sideImage2} onChange={(e) => updateField("sideImage2", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Product View 3
-                <input value={form.sideImage3} onChange={(e) => updateField("sideImage3", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Product View 4
-                <input value={form.sideImage4} onChange={(e) => updateField("sideImage4", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Colour
-                <input value={form.colour} onChange={(e) => updateField("colour", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Material
-                <input value={form.material} onChange={(e) => updateField("material", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Weight
-                <input value={form.weight} onChange={(e) => updateField("weight", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Length
-                <input value={form.length} onChange={(e) => updateField("length", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Width
-                <input value={form.width} onChange={(e) => updateField("width", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Height
-                <input value={form.height} onChange={(e) => updateField("height", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Capacity
-                <input value={form.capacity} onChange={(e) => updateField("capacity", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm">
-                Compartments
-                <input value={form.compartments} onChange={(e) => updateField("compartments", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm sm:col-span-2">
-                Features (comma-separated)
-                <input value={form.features} onChange={(e) => updateField("features", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm sm:col-span-2">
-                Description
-                <textarea value={form.description} onChange={(e) => updateField("description", e.target.value)} rows={3} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm sm:col-span-2">
-                SEO Title
-                <input value={form.seoTitle} onChange={(e) => updateField("seoTitle", e.target.value)} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="block text-sm sm:col-span-2">
-                SEO Description
-                <textarea value={form.seoDescription} onChange={(e) => updateField("seoDescription", e.target.value)} rows={2} className="mt-1 w-full border border-ink/10 px-3 py-2 text-sm" />
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.b2cAvailable} onChange={(e) => updateField("b2cAvailable", e.target.checked)} />
-                B2C Available
-              </label>
-              <label className="flex items-center gap-2 text-sm">
-                <input type="checkbox" checked={form.featured} onChange={(e) => updateField("featured", e.target.checked)} />
-                Featured
-              </label>
-            </div>
-
-            <div className="mt-6 flex justify-end gap-3">
-              <button type="button" onClick={() => { setEditing(false); setForm(emptyForm); setShowForm(false); }} className="text-sm underline">Cancel</button>
-              <button type="submit" disabled={saving} className="h-10 bg-ink px-5 text-[11px] tracking-[0.16em] uppercase text-paper disabled:opacity-60">
-                {saving ? "Saving..." : editing ? "Update Product" : "Create Product"}
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between text-sm">
+            <span className="text-ink-soft">
+              Page {page} of {totalPages} — {total} product{total !== 1 ? "s" : ""}
+            </span>
+            <div className="flex gap-2">
+              <button
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                disabled={page === 1 || loading}
+                className="h-9 border border-ink px-3 text-xs uppercase disabled:opacity-40"
+              >
+                Previous
+              </button>
+              <button
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                disabled={page === totalPages || loading}
+                className="h-9 border border-ink px-3 text-xs uppercase disabled:opacity-40"
+              >
+                Next
               </button>
             </div>
-          </form>
-        </div>
+          </div>
+        )}
+      </div>
+
+      {showForm && (
+        <ProductForm
+          productId={editingId}
+          onClose={() => {
+            setShowForm(false);
+            setEditingId(null);
+          }}
+          onSaved={handleSaved}
+        />
       )}
-    </div>
+    </>
   );
 }

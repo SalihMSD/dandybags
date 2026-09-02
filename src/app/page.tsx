@@ -30,7 +30,7 @@ const jsonLd = {
   "@type": "Organization",
   name: site.name,
   description: site.description,
-  url: "https://dandy-bags-staging.vercel.app",
+  url: "https://dandyonline.in",
   contactPoint: {
     "@type": "ContactPoint",
     telephone: "+91-90252-66485",

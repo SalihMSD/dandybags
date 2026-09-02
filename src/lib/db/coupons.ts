@@ -126,6 +126,43 @@ export async function markCouponUsed(couponId: string) {
   });
 }
 
+export type CouponAnalysis = {
+  totalUses: number;
+  remainingUses: number;
+  ordersUsingCoupon: Array<{
+    orderId: string;
+    totalLabel: string;
+    paymentStatus: string;
+    createdAt: string;
+  }>;
+};
+
+export async function analyzeCoupon(couponCode: string): Promise<CouponAnalysis | null> {
+  const coupon = await prisma.coupon.findUnique({
+    where: { code: couponCode.toUpperCase() },
+    select: { id: true, usageLimit: true, usedCount: true },
+  });
+
+  if (!coupon) return null;
+
+  const orders = await prisma.order.findMany({
+    where: { couponId: coupon.id },
+    select: { id: true, totalLabel: true, paymentStatus: true, createdAt: true },
+    orderBy: { createdAt: "desc" },
+  });
+
+  return {
+    totalUses: orders.length,
+    remainingUses: Math.max(0, coupon.usageLimit - coupon.usedCount),
+    ordersUsingCoupon: orders.map((o) => ({
+      orderId: o.id,
+      totalLabel: o.totalLabel,
+      paymentStatus: o.paymentStatus,
+      createdAt: o.createdAt.toISOString(),
+    })),
+  };
+}
+
 export async function listUserCoupons(userId: string) {
   const coupons = await prisma.coupon.findMany({
     where: { userId },
