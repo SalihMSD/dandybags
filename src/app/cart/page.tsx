@@ -89,6 +89,7 @@ export default function CartPage() {
           Checkout
         </Link>
         <p className="text-sm text-ink-soft">{lines.length} item(s) · Subtotal: {formatInr(lines.reduce((sum, l) => sum + l.sellingPrice * l.qty, 0))}</p>
+        <p className="text-xs text-ink-soft">Payment is completed securely at checkout.</p>
       </div>
     </div>
   );
