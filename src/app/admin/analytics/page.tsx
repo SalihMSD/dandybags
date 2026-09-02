@@ -152,13 +152,13 @@ export default function AdminAnalytics() {
 
   return (
     <div className="space-y-8">
-      <div className="flex flex-wrap items-end gap-4">
-        <div className="flex gap-2">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-end sm:flex-wrap sm:gap-4">
+        <div className="flex scroll-px-4 gap-2 overflow-x-auto pb-1 sm:scroll-p-0 sm:overflow-visible sm:pb-0">
           {PRESETS.map((p) => (
             <button
               key={p.value}
               onClick={() => { setPreset(p.value); setCustomStart(""); setCustomEnd(""); }}
-              className={`h-9 px-4 text-[11px] tracking-[0.16em] uppercase ${
+              className={`shrink-0 h-9 px-4 text-[11px] tracking-[0.16em] uppercase whitespace-nowrap ${
                 preset === p.value
                   ? "bg-ink text-paper"
                   : "border border-ink/10 bg-paper text-ink hover:bg-ink/5"
@@ -169,23 +169,23 @@ export default function AdminAnalytics() {
           ))}
         </div>
 
-        <div className="flex items-end gap-2 text-sm">
-          <label className="block">
+        <div className="flex flex-col gap-2 text-sm sm:flex-row sm:items-end sm:gap-2">
+          <label className="block sm:w-32">
             <span className="text-xs uppercase tracking-[0.16em] text-ink-soft">From</span>
             <input
               type="date"
               value={customStart}
               onChange={(e) => { setCustomStart(e.target.value); setPreset("custom"); }}
-              className="w-32 rounded border border-ink/10 bg-paper px-2 py-1 text-sm outline-none focus:border-ink"
+              className="mt-1 w-full rounded border border-ink/10 bg-paper px-2 py-1 text-sm outline-none focus:border-ink sm:mt-0 sm:w-32"
             />
           </label>
-          <label className="block">
+          <label className="block sm:w-32">
             <span className="text-xs uppercase tracking-[0.16em] text-ink-soft">To</span>
             <input
               type="date"
               value={customEnd}
               onChange={(e) => { setCustomEnd(e.target.value); setPreset("custom"); }}
-              className="w-32 rounded border border-ink/10 bg-paper px-2 py-1 text-sm outline-none focus:border-ink"
+              className="mt-1 w-full rounded border border-ink/10 bg-paper px-2 py-1 text-sm outline-none focus:border-ink sm:mt-0 sm:w-32"
             />
           </label>
         </div>

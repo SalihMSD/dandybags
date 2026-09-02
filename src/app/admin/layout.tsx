@@ -78,7 +78,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
         />
       )}
 
-      {/* Sidebar: overlay drawer on mobile/tablet, flex participant on desktop */}
+      {/* Sidebar: overlay drawer on mobile/tablet, fixed on desktop */}
       <aside
         className={`
           fixed inset-y-0 left-0 z-50 flex h-screen flex-col overflow-y-auto border-r border-ink/10 bg-ink p-4 text-paper
@@ -86,7 +86,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
           -translate-x-full
           transition-transform duration-300
           ${sidebarOpen ? "translate-x-0" : ""}
-          xl:relative xl:z-auto xl:translate-x-0 xl:transition-all
+          xl:translate-x-0 xl:transition-none
           ${collapsed ? "xl:w-20" : "xl:w-60"}
         `}
       >
@@ -138,7 +138,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
       </aside>
 
       {/* Main content: takes remaining width on desktop, full width on mobile */}
-      <div className="flex-1 overflow-x-hidden">
+      <div className={`flex-1 overflow-x-hidden ${collapsed ? "xl:ml-[80px]" : "xl:ml-[240px]"}`}>
         <header className="sticky top-0 z-10 flex h-16 items-center justify-between border-b border-ink/10 bg-paper px-4 shadow-sm sm:px-6">
           <div className="flex items-center gap-3">
             <button
