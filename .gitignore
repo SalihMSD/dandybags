@@ -12,3 +12,4 @@ public/logo-part-*.png
 .vercel
 .kilo/
 tsconfig.tsbuildinfo
+firebase-service-account.json
