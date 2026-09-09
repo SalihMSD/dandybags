@@ -39,6 +39,14 @@ export default function ProfilePage() {
 
   if (!user) return null;
 
+  const memberSince = user.createdAt
+    ? new Intl.DateTimeFormat("en-IN", {
+        timeZone: "Asia/Kolkata",
+        year: "numeric",
+        month: "long",
+      }).format(new Date(user.createdAt))
+    : null;
+
   return (
     <div className="mx-auto max-w-xl px-4 py-10 sm:py-16 md:px-8">
       <h1 className="font-serif text-4xl">My Profile</h1>
@@ -55,6 +63,14 @@ export default function ProfilePage() {
           Mobile Number
           <input name="phone" defaultValue={user.phone} required className={fieldClass} />
         </label>
+
+        {memberSince ? (
+          <div>
+            <p className="text-sm text-ink-soft">Member Since</p>
+            <p className="mt-1 text-sm text-ink">{memberSince}</p>
+          </div>
+        ) : null}
+
         {message ? <p className="text-sm text-ink-soft">{message}</p> : null}
         <button
           type="submit"

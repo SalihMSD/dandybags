@@ -11,6 +11,7 @@ export type AuthUser = {
   role: "CUSTOMER" | "ADMIN";
   emailVerified: boolean;
   status: string;
+  createdAt: string;
 };
 
 type AuthState = {

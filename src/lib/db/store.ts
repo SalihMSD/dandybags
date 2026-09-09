@@ -184,6 +184,7 @@ export function publicUser(user: {
   role: Role;
   emailVerified: boolean;
   status: AccountStatus | string;
+  createdAt: string | Date;
 }) {
   return {
     id: user.id,
@@ -193,6 +194,7 @@ export function publicUser(user: {
     role: user.role,
     emailVerified: user.emailVerified,
     status: user.status,
+    createdAt: user.createdAt,
   };
 }
 
