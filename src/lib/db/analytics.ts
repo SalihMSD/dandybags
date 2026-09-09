@@ -1,16 +1,9 @@
 import { prisma } from "@/lib/db/prisma";
+import { formatIndiaDate, indiaDateToUtcRange, subtractDays } from "@/lib/format";
 
 export function parseTotalLabel(label: string): number {
   const num = Number(label.replace(/[^0-9.]/g, ""));
   return isNaN(num) ? 0 : num;
-}
-
-function dateKey(date: Date | string): string {
-  const d = new Date(date);
-  const y = d.getFullYear();
-  const m = String(d.getMonth() + 1).padStart(2, "0");
-  const day = String(d.getDate()).padStart(2, "0");
-  return `${y}-${m}-${day}`;
 }
 
 export type AnalyticsDateRange = {
@@ -20,35 +13,41 @@ export type AnalyticsDateRange = {
 
 export async function getAdminAnalytics(range?: AnalyticsDateRange) {
   const now = new Date();
+  const todayIndiaStr = formatIndiaDate(now);
 
   let start: Date;
   let end: Date;
 
   if (range?.start && range?.end) {
-    start = new Date(range.start);
-    start.setHours(0, 0, 0, 0);
-    end = new Date(range.end);
-    end.setHours(23, 59, 59, 999);
+    const startRange = indiaDateToUtcRange(range.start);
+    const endRange = indiaDateToUtcRange(range.end);
+    start = startRange.start;
+    end = endRange.endExclusive;
     if (end < start) {
       const tmp = start;
       start = end;
       end = tmp;
     }
   } else if (range?.start) {
-    start = new Date(range.start);
-    start.setHours(0, 0, 0, 0);
+    const startRange = indiaDateToUtcRange(range.start);
+    start = startRange.start;
     end = new Date();
-    end.setHours(23, 59, 59, 999);
   } else if (range?.end) {
-    end = new Date(range.end);
-    end.setHours(23, 59, 59, 999);
-    start = new Date(2000, 0, 1);
+    const endRange = indiaDateToUtcRange(range.end);
+    end = endRange.endExclusive;
+    start = new Date(Date.UTC(2000, 0, 1));
   } else {
-    start = new Date(now.getFullYear(), now.getMonth(), 1);
-    end = new Date(now.getFullYear(), now.getMonth() + 1, 0, 23, 59, 59);
+    const year = Number(todayIndiaStr.substring(0, 4));
+    const month = Number(todayIndiaStr.substring(5, 7));
+    const thisMonth = `${year}-${String(month).padStart(2, "0")}`;
+    const thisMonthStart = indiaDateToUtcRange(`${thisMonth}-01`);
+    const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
+    const nextMonthStart = indiaDateToUtcRange(nextMonth);
+    start = thisMonthStart.start;
+    end = nextMonthStart.start;
   }
 
-  const whereClause = { gte: start, lte: end };
+  const whereClause = { gte: start, lt: end };
 
   const [paidOrders, allOrders, orderItems, categoryAgg, totalCustomers, newCustomersInPeriod, allTimeStats] = await Promise.all([
     prisma.order.findMany({
@@ -88,7 +87,7 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
       JOIN "orders" o ON o.id = oi."orderId"
       WHERE o."paymentStatus" = 'PAID'
         AND o."createdAt" >= ${start}
-        AND o."createdAt" <= ${end}
+        AND o."createdAt" < ${end}
       GROUP BY p.category
       ORDER BY revenue DESC
     `,
@@ -130,7 +129,7 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
       customerOrderMap.set(order.userId, (customerOrderMap.get(order.userId) || 0) + 1);
     }
 
-    const dk = dateKey(order.createdAt);
+    const dk = formatIndiaDate(order.createdAt);
     const existing = dailyMap.get(dk) ?? { revenue: 0, count: 0 };
     existing.revenue += order.paymentStatus === "PAID" ? amount : 0;
     existing.count++;
@@ -143,13 +142,9 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
     orderStatusCounts[osKey] = (orderStatusCounts[osKey] || 0) + 1;
   }
 
-  const todayKey = dateKey(now);
-  const sevenDaysAgo = new Date(now);
-  sevenDaysAgo.setDate(now.getDate() - 6);
-  const sevenDaysAgoKey = dateKey(sevenDaysAgo);
-  const thirtyDaysAgo = new Date(now);
-  thirtyDaysAgo.setDate(now.getDate() - 29);
-  const thirtyDaysAgoKey = dateKey(thirtyDaysAgo);
+  const todayKey = todayIndiaStr;
+  const sevenDaysAgoKey = subtractDays(todayKey, 6);
+  const thirtyDaysAgoKey = subtractDays(todayKey, 29);
 
   let todayRevenue = 0;
   let todayOrders = 0;
@@ -160,7 +155,7 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
 
   for (const order of paidOrders) {
     const amount = parseTotalLabel(order.totalLabel);
-    const dk = dateKey(order.createdAt);
+    const dk = formatIndiaDate(order.createdAt);
 
     if (dk === todayKey) {
       todayRevenue += amount;

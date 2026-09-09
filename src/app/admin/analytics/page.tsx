@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState } from "react";
-import { formatInr } from "@/lib/format";
+import { formatInr, formatIndiaDate, subtractDays } from "@/lib/format";
 import { BarChart } from "@/components/admin/BarChart";
 
 type AnalyticsResponse = {
@@ -47,33 +47,36 @@ const PRESETS = [
 ];
 
 function getDateRange(preset: string, customStart?: string, customEnd?: string) {
-  const now = new Date();
-  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
-  const endToday = new Date(today);
+  const todayStr = formatIndiaDate(new Date());
 
   switch (preset) {
     case "today":
-      return { start: today, end: endToday };
+      return { start: todayStr, end: todayStr };
     case "week":
-      return { start: new Date(now.setDate(now.getDate() - 6)), end: today };
+      return { start: subtractDays(todayStr, 6), end: todayStr };
     case "month":
-      return { start: new Date(now.setMonth(now.getMonth() - 1)), end: today };
+      return { start: subtractDays(todayStr, 29), end: todayStr };
     case "this-month": {
-      const s = new Date(now.getFullYear(), now.getMonth(), 1);
-      return { start: s, end: today };
+      const year = todayStr.substring(0, 4);
+      const month = todayStr.substring(5, 7);
+      return { start: `${year}-${month}-01`, end: todayStr };
     }
     case "last-month": {
-      const s = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-      const e = new Date(now.getFullYear(), now.getMonth(), 0);
-      return { start: s, end: e };
+      const year = Number(todayStr.substring(0, 4));
+      const month = Number(todayStr.substring(5, 7));
+      const prevMonth = month === 1 ? 12 : month - 1;
+      const prevYear = month === 1 ? year - 1 : year;
+      const firstDay = `${prevYear}-${String(prevMonth).padStart(2, "0")}-01`;
+      const lastDay = subtractDays(`${year}-${String(month).padStart(2, "0")}-01`, 1);
+      return { start: firstDay, end: lastDay };
     }
     case "custom":
       return {
-        start: customStart ? new Date(customStart) : today,
-        end: customEnd ? new Date(customEnd) : today,
+        start: customStart || todayStr,
+        end: customEnd || todayStr,
       };
     default:
-      return { start: today, end: today };
+      return { start: todayStr, end: todayStr };
   }
 }
 
@@ -108,8 +111,8 @@ export default function AdminAnalytics() {
   function load() {
     const { start, end } = getDateRange(preset, customStart, customEnd);
     const params = new URLSearchParams();
-    params.set("start", start.toISOString().split("T")[0]);
-    params.set("end", end.toISOString().split("T")[0]);
+    params.set("start", start);
+    params.set("end", end);
 
     setLoading(true);
     setError("");
