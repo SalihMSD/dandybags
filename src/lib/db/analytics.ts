@@ -101,7 +101,12 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
       }>
     >`
       SELECT
-        SUM(CAST(o."totalLabel" AS NUMERIC))::text AS total_revenue,
+        SUM(
+          CAST(
+            REGEXP_REPLACE(o."totalLabel", '[^0-9.]', '', 'g')
+            AS NUMERIC
+          )
+        )::text AS total_revenue,
         COUNT(*)::text AS total_orders
       FROM "orders" o
       WHERE o."paymentStatus" = 'PAID'
