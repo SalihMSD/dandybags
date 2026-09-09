@@ -7,10 +7,12 @@ export function PasswordField({
   name,
   label,
   autoComplete,
+  className,
 }: {
   name: string;
   label: string;
   autoComplete?: string;
+  className?: string;
 }) {
   const [show, setShow] = useState(false);
   return (
@@ -22,7 +24,7 @@ export function PasswordField({
           type={show ? "text" : "password"}
           required
           autoComplete={autoComplete}
-          className={`${fieldClass} pr-16`}
+          className={`${fieldClass} pr-16 ${className ?? ""}`}
         />
         <button
           type="button"
