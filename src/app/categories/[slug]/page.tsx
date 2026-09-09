@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
-import { categories, getCategory } from "@/lib/categories";
+import { getCategory } from "@/lib/categories";
+import { getSessionUser } from "@/lib/auth/session";
+import { getWishlistSkus } from "@/lib/db/wishlist";
 import { listProductsByCategory } from "@/lib/db/products";
 
 type Props = { params: Promise<{ slug: string }> };
@@ -22,6 +24,8 @@ export default async function CategoryPage({ params }: Props) {
   const c = getCategory(slug);
   if (!c) notFound();
   const products = await listProductsByCategory(c.slug);
+  const user = await getSessionUser();
+  const wishlistSkus = user ? await getWishlistSkus(user.id) : [];
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-8">
@@ -30,7 +34,7 @@ export default async function CategoryPage({ params }: Props) {
       <p className="mt-3 max-w-xl text-ink-soft">{c.description}</p>
       <div className="mt-8 grid grid-cols-2 items-stretch gap-2.5 sm:mt-10 sm:gap-4 lg:grid-cols-4">
         {products.map((p, i) => (
-          <ProductCard key={p.sku} product={p} priority={i < 4} />
+          <ProductCard key={p.sku} product={p} priority={i < 4} saved={wishlistSkus.includes(p.sku)} />
         ))}
       </div>
     </div>

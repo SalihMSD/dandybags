@@ -5,6 +5,8 @@ import { ProductCard } from "@/components/ProductCard";
 import { ProductGallery } from "@/components/ProductGallery";
 import { ProductReviews } from "@/components/ProductReviews";
 import { getCategory } from "@/lib/categories";
+import { getSessionUser } from "@/lib/auth/session";
+import { getWishlistSkus } from "@/lib/db/wishlist";
 import { getPublicProductBySlug, listProductsByCategory } from "@/lib/db/products";
 import { discountPercent, formatInr } from "@/lib/format";
 import { site } from "@/lib/site";
@@ -44,6 +46,8 @@ export default async function ProductPage({ params }: Props) {
   const off = discountPercent(product.mrp, product.sellingPrice);
   const related = await listProductsByCategory(product.category);
   const relatedFiltered = related.filter((p) => p.sku !== product.sku).slice(0, 4);
+  const user = await getSessionUser();
+  const wishlistSkus = user ? await getWishlistSkus(user.id) : [];
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -70,7 +74,7 @@ export default async function ProductPage({ params }: Props) {
               <>
                 <span className="text-ink-soft line-through">{formatInr(product.mrp)}</span>
                 {off != null && (
-                  <span className="text-sm font-semibold text-camel-dark">{off}% off</span>
+                  <span className="text-[12px] font-semibold text-camel-dark">{off}% off</span>
                 )}
               </>
             )}
@@ -120,7 +124,7 @@ export default async function ProductPage({ params }: Props) {
           <h2 className="font-serif text-3xl">More in this collection</h2>
           <div className="mt-6 grid grid-cols-2 items-stretch gap-2.5 sm:gap-4 lg:grid-cols-4">
             {relatedFiltered.map((p) => (
-              <ProductCard key={p.sku} product={p} />
+              <ProductCard key={p.sku} product={p} saved={wishlistSkus.includes(p.sku)} />
             ))}
           </div>
         </section>

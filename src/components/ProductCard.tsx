@@ -30,18 +30,25 @@ export function ProductCard({
   product,
   onQuickView,
   priority = false,
+  saved = false,
 }: {
   product: Product;
   onQuickView?: (p: Product) => void;
   priority?: boolean;
+  saved?: boolean;
 }) {
   const cat = getCategory(product.category);
   const off = discountPercent(product.mrp, product.sellingPrice);
   const [added, setAdded] = useState(false);
-  const [saved, setSaved] = useState(false);
+  const [isSaved, setIsSaved] = useState(saved);
+  const [wishlistPending, setWishlistPending] = useState(false);
   const [qty, setQty] = useState(0);
   const { isAuthenticated } = useAuth();
   const router = useRouter();
+
+  useEffect(() => {
+    setIsSaved(saved);
+  }, [saved]);
 
   useEffect(() => {
     const sync = () => {
@@ -110,24 +117,30 @@ export function ProductCard({
       </Link>
       <button
         type="button"
-        aria-label={saved ? "Remove from wishlist" : "Save to wishlist"}
-        className="absolute top-3 right-3 z-10 flex h-9 w-9 items-center justify-center rounded-full bg-paper/90 text-lg shadow-sm ring-1 ring-ink/8 transition-transform duration-200 hover:scale-110"
+        aria-label={isSaved ? "Remove from wishlist" : "Save to wishlist"}
+        disabled={wishlistPending}
+        className="absolute top-3 right-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-paper/90 text-lg shadow-sm ring-1 ring-ink/8 transition-transform duration-200 hover:scale-110 disabled:opacity-70"
         onClick={() => {
           if (!isAuthenticated) {
             router.push("/login?next=/account/wishlist");
             return;
           }
+          if (wishlistPending) return;
+          const currentSaved = isSaved;
+          setWishlistPending(true);
+          setIsSaved((v) => !v);
           void fetch("/api/customer/wishlist", {
-            method: saved ? "DELETE" : "POST",
+            method: currentSaved ? "DELETE" : "POST",
             credentials: "include",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({ sku: product.sku }),
           }).then((res) => {
-            if (res.ok) setSaved((v) => !v);
+            if (!res.ok) setIsSaved(currentSaved);
+            setWishlistPending(false);
           });
         }}
       >
-        {saved ? "♥" : "♡"}
+        {isSaved ? "♥" : "♡"}
       </button>
       <div className="flex flex-1 flex-col p-3 sm:p-4">
         <p className="text-[9px] tracking-[0.12em] text-ink-soft uppercase sm:text-[10px] sm:tracking-[0.16em]">

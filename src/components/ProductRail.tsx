@@ -7,11 +7,13 @@ export function ProductRail({
   title,
   href,
   products,
+  wishlistSkus = [],
 }: {
   eyebrow: string;
   title: string;
   href: string;
   products: Product[];
+  wishlistSkus?: string[];
 }) {
   return (
     <section className="py-12 sm:py-16">
@@ -28,7 +30,7 @@ export function ProductRail({
         <div className="hide-scrollbar -mx-4 flex snap-x snap-mandatory gap-3 overflow-x-auto px-4 pb-2 sm:mx-0 sm:grid sm:grid-cols-2 sm:gap-4 sm:overflow-visible sm:px-0 lg:grid-cols-4">
           {products.map((p, i) => (
             <div key={p.sku} className="w-[46%] shrink-0 snap-start sm:w-auto">
-              <ProductCard product={p} priority={i < 4} />
+              <ProductCard product={p} priority={i < 4} saved={wishlistSkus.includes(p.sku)} />
             </div>
           ))}
         </div>

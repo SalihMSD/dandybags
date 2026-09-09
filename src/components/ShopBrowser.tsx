@@ -1,21 +1,36 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useMemo, useEffect, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { categories, type CategorySlug } from "@/lib/categories";
 import { type Product } from "@/lib/db/products";
 import { ProductCard } from "./ProductCard";
+import { useAuth } from "./AuthProvider";
 
 type Sort = "featured" | "newest" | "price-asc" | "price-desc";
 
 export function ShopBrowser({ products }: { products: Product[] }) {
   const params = useSearchParams();
+  const { isAuthenticated } = useAuth();
   const initialQ = params.get("q") || "";
   const [q, setQ] = useState(initialQ);
   const [cat, setCat] = useState<string>(params.get("category") || "all");
   const [avail, setAvail] = useState("all");
   const [sort, setSort] = useState<Sort>("featured");
   const [colour, setColour] = useState("all");
+  const [wishlistSkus, setWishlistSkus] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!isAuthenticated) return;
+    void fetch("/api/customer/wishlist", { credentials: "include" })
+      .then((res) => res.ok ? res.json() : null)
+      .then((data) => {
+        if (data?.items && Array.isArray(data.items)) {
+          setWishlistSkus(data.items.map((item: { sku: string }) => item.sku));
+        }
+      })
+      .catch(() => {});
+  }, [isAuthenticated]);
 
   const colours = useMemo(
     () => Array.from(new Set(products.map((p) => p.colour))),
@@ -62,7 +77,9 @@ export function ShopBrowser({ products }: { products: Product[] }) {
         <select value={colour} onChange={(e) => setColour(e.target.value)} className={select}>
           <option value="all">All colours</option>
           {colours.map((c) => (
-            <option key={c}>{c}</option>
+            <option key={c} value={c}>
+              {c}
+            </option>
           ))}
         </select>
         <select value={avail} onChange={(e) => setAvail(e.target.value)} className={select}>
@@ -79,7 +96,7 @@ export function ShopBrowser({ products }: { products: Product[] }) {
       <p className="mb-6 text-sm text-ink-soft">{list.length} bags</p>
       <div className="grid grid-cols-2 items-stretch gap-2.5 sm:gap-4 lg:grid-cols-4 lg:gap-6">
         {list.map((p, i) => (
-          <ProductCard key={p.sku} product={p} priority={i < 4} />
+          <ProductCard key={p.sku} product={p} priority={i < 4} saved={wishlistSkus.includes(p.sku)} />
         ))}
       </div>
     </div>

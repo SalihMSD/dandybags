@@ -78,6 +78,14 @@ export function publicWishlistProduct(product: {
   };
 }
 
+export async function getWishlistSkus(userId: string): Promise<string[]> {
+  const rows = await prisma.wishlist.findMany({
+    where: { userId },
+    select: { sku: true },
+  });
+  return rows.map((row) => row.sku);
+}
+
 export async function listWishlist(userId: string) {
   const rows = await prisma.wishlist.findMany({
     where: { userId },
