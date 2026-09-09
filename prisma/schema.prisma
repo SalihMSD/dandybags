@@ -74,9 +74,8 @@ model User {
   passwordHash  String
   role          Role
   status        AccountStatus @default(ACTIVE)
-   emailVerified Boolean       @default(false)
-   phoneVerifiedAt DateTime?
-   lastLoginAt   DateTime?
+  emailVerified Boolean       @default(false)
+  lastLoginAt   DateTime?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
