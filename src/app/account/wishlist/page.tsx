@@ -131,7 +131,7 @@ export default function WishlistPage() {
                     type="button"
                     disabled={isPending}
                     onClick={() => void moveToCart(p)}
-                    className="w-full min-h-[44px] whitespace-nowrap rounded-lg border border-ink/15 px-2 py-2 text-center text-[10px] font-medium tracking-[0.08em] uppercase transition-colors duration-200 hover:bg-ink/5 disabled:opacity-60 disabled:cursor-not-allowed sm:px-3 sm:py-2.5 sm:text-[11px] sm:tracking-[0.12em]"
+                    className="flex min-w-0 items-center justify-center text-center leading-tight min-h-[44px] rounded-lg border border-ink/15 px-2 py-2 text-[10px] font-medium tracking-[0.08em] uppercase transition-colors duration-200 hover:bg-ink/5 disabled:opacity-60 disabled:cursor-not-allowed sm:px-3 sm:py-2.5 sm:text-[11px] sm:tracking-[0.12em]"
                   >
                     {isMoving ? "Moving..." : "Move to cart"}
                   </button>
@@ -139,7 +139,7 @@ export default function WishlistPage() {
                     type="button"
                     disabled={isPending}
                     onClick={() => void remove(p.sku)}
-                    className="w-full min-h-[44px] whitespace-nowrap rounded-lg border border-ink/15 px-2 py-2 text-center text-[10px] font-medium tracking-[0.08em] uppercase transition-colors duration-200 hover:bg-ink/5 disabled:opacity-60 disabled:cursor-not-allowed sm:px-3 sm:py-2.5 sm:text-[11px] sm:tracking-[0.12em]"
+                    className="flex min-w-0 items-center justify-center text-center leading-tight min-h-[44px] rounded-lg border border-ink/15 px-2 py-2 text-[10px] font-medium tracking-[0.08em] uppercase transition-colors duration-200 hover:bg-ink/5 disabled:opacity-60 disabled:cursor-not-allowed sm:px-3 sm:py-2.5 sm:text-[11px] sm:tracking-[0.12em]"
                   >
                     {isRemoving ? "Removing..." : "Remove"}
                   </button>
