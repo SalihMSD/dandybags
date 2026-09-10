@@ -54,6 +54,99 @@ function extractPayment(payload: unknown): RazorpayPaymentEntity | null {
 export type WebhookResult = { ok: true; action: string } | { ok: false; error: string };
 
 /**
+ * Shared idempotent payment-capture helper.
+ *
+ * This is the single source of truth for transitioning an order to PAID and
+ * deducting stock atomically. It is used by both the webhook and the
+ * customer/guest verification endpoints so that every successful Razorpay
+ * capture follows the same safe path regardless of which event arrives first.
+ *
+ * Invariants:
+ *  - CANCELLED orders are never marked PAID and never have stock touched.
+ *  - Already-PAID orders are a no-op (idempotent under concurrent webhooks or
+ *    repeated verification requests).
+ *  - Stock is deducted exactly once per order because the transaction re-reads
+ *    paymentStatus inside the advisory lock and guards the final update with
+ *    paymentStatus: { not: "PAID" }.
+ *  - Null stock (unlimited) is naturally skipped by the WHERE stock >= qty
+ *    condition.
+ */
+export async function applyPaymentCapture(params: {
+  razorpayOrderId: string;
+  razorpayPaymentId?: string;
+}): Promise<WebhookResult> {
+  try {
+    const action = await prisma.$transaction(async (tx) => {
+      // Serialize concurrent deliveries for this specific Razorpay order.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${params.razorpayOrderId}))`;
+
+      // Re-read order WITH items inside the locked transaction.
+      const order = await tx.order.findFirst({
+        where: { razorpayOrderId: params.razorpayOrderId },
+        include: { items: { select: { sku: true, qty: true } }, coupon: { select: { id: true } } },
+      });
+
+      if (!order) return "skipped_unknown_order";
+
+      // Never process a cancelled order.
+      if (order.orderStatus === "CANCELLED") return "skipped_cancelled";
+
+      // Idempotency guard INSIDE the transaction (correct under concurrency).
+      if (order.paymentStatus === "PAID") return "already_paid";
+
+      // Atomically deduct numeric stock for each order item.
+      for (const item of order.items) {
+        const result = await tx.product.updateMany({
+          where: { sku: item.sku, stock: { gte: item.qty } },
+          data: { stock: { decrement: item.qty } },
+        });
+
+        if (result.count === 0) {
+          const prod = await tx.product.findUnique({
+            where: { sku: item.sku },
+            select: { stock: true },
+          });
+          if (prod !== null && prod.stock !== null) {
+            throw new Error(`INSUFFICIENT_STOCK:${item.sku}`);
+          }
+        }
+      }
+
+      // Update order to PAID. The WHERE guard prevents a double-write.
+      const updated = await tx.order.updateMany({
+        where: { id: order.id, paymentStatus: { not: "PAID" } },
+        data: {
+          paymentStatus: "PAID",
+          ...(params.razorpayPaymentId && !order.razorpayPaymentId
+            ? { razorpayPaymentId: params.razorpayPaymentId }
+            : {}),
+        },
+      });
+
+      if (updated.count > 0 && order.couponId) {
+        await tx.coupon.update({
+          where: { id: order.couponId },
+          data: {
+            usedCount: { increment: 1 },
+            usedAt: new Date(),
+            status: "USED",
+          },
+        });
+      }
+
+      return updated.count > 0 ? "marked_paid" : "already_paid";
+    });
+
+    return { ok: true, action };
+  } catch (err) {
+    if (err instanceof Error && err.message.startsWith("INSUFFICIENT_STOCK:")) {
+      return { ok: true, action: "insufficient_stock" };
+    }
+    throw err;
+  }
+}
+
+/**
  * Process a verified Razorpay webhook event.
  * MUST only be called after verifyWebhookSignature passes.
  *
@@ -62,6 +155,7 @@ export type WebhookResult = { ok: true; action: string } | { ok: false; error: s
  *   - payment.failed on a PAID order → no-op, do not downgrade ("no_downgrade")
  *   - payment.failed on an already-FAILED order → no-op ("already_failed")
  *   - Unknown razorpayOrderId → ack safely ("skipped_unknown_order")
+ *   - Cancelled order → ack safely ("skipped_cancelled")
  */
 export async function processWebhookEvent(payload: unknown): Promise<WebhookResult> {
   if (!payload || typeof payload !== "object") {
@@ -87,97 +181,7 @@ export async function processWebhookEvent(payload: unknown): Promise<WebhookResu
       return { ok: true, action: "skipped_unknown_order" };
     }
 
-    // Everything below runs inside a single serializable transaction.
-    //
-    // Concurrency guarantees:
-    //   1. pg_advisory_xact_lock serializes concurrent webhook deliveries for
-    //      the same Razorpay order (lock released automatically on commit/rollback).
-    //   2. paymentStatus is re-read INSIDE the transaction so a duplicate
-    //      delivery that arrives while the first is committing sees PAID and exits.
-    //   3. Product stock is decremented with a conditional WHERE stock >= qty;
-    //      this is an atomic DB operation that prevents overselling even when
-    //      two different orders race to buy the last unit of the same SKU.
-    //   4. The order update is guarded with paymentStatus: { not: "PAID" } as a
-    //      final safety net against a double-write slipping through.
-    try {
-      const action = await prisma.$transaction(async (tx) => {
-        // Serialize concurrent delivery for this specific Razorpay order.
-        // Uses a transaction-level advisory lock (auto-released on commit/rollback).
-        await tx.$executeRaw`SELECT pg_advisory_xact_lock(hashtext(${razorpayOrderId}))`;
-
-        // Re-read order WITH items inside the locked transaction.
-        const order = await tx.order.findFirst({
-          where: { razorpayOrderId },
-          include: { items: { select: { sku: true, qty: true } }, coupon: { select: { id: true } } },
-        });
-
-        if (!order) return "skipped_unknown_order";
-
-        // Idempotency guard INSIDE the transaction (correct under concurrency).
-        if (order.paymentStatus === "PAID") return "already_paid";
-
-        // Atomically deduct numeric stock for each order item.
-        // Null stock = unlimited → skip deduction, allow purchase freely.
-        for (const item of order.items) {
-          // WHERE stock >= qty ensures the decrement only fires if stock is
-          // numeric AND sufficient. It will NOT match NULL stock columns.
-          const result = await tx.product.updateMany({
-            where: { sku: item.sku, stock: { gte: item.qty } },
-            data: { stock: { decrement: item.qty } },
-          });
-
-          if (result.count === 0) {
-            // 0 rows updated: either stock is null (unlimited) or insufficient.
-            // Distinguish by reading the current stock value.
-            const prod = await tx.product.findUnique({
-              where: { sku: item.sku },
-              select: { stock: true },
-            });
-            if (prod !== null && prod.stock !== null) {
-              // Numeric stock exists but is insufficient — prevent oversell.
-              // Throws → transaction rolls back → no partial deductions.
-              throw new Error(`INSUFFICIENT_STOCK:${item.sku}`);
-            }
-            // prod.stock === null → unlimited, nothing to deduct — continue.
-          }
-        }
-
-        // Update order to PAID. The WHERE guard prevents a double-write if two
-        // transactions somehow race past the re-read above.
-        const updated = await tx.order.updateMany({
-          where: { id: order.id, paymentStatus: { not: "PAID" } },
-          data: {
-            paymentStatus: "PAID",
-            ...(razorpayPaymentId && !order.razorpayPaymentId
-              ? { razorpayPaymentId }
-              : {}),
-          },
-        });
-
-        if (updated.count > 0 && order.couponId) {
-          await tx.coupon.update({
-            where: { id: order.couponId },
-            data: {
-              usedCount: { increment: 1 },
-              usedAt: new Date(),
-              status: "USED",
-            },
-          });
-        }
-
-        return updated.count > 0 ? "marked_paid" : "already_paid";
-      });
-
-      return { ok: true, action };
-    } catch (err) {
-      if (err instanceof Error && err.message.startsWith("INSUFFICIENT_STOCK:")) {
-        // Oversell scenario: Razorpay captured money but stock ran out concurrently.
-        // Ack with 200 so Razorpay stops retrying. Order stays PENDING — admin must
-        // investigate and issue a refund through the Razorpay dashboard.
-        return { ok: true, action: "insufficient_stock" };
-      }
-      throw err; // DB errors propagate → route returns 500 → Razorpay will retry.
-    }
+    return applyPaymentCapture({ razorpayOrderId, razorpayPaymentId });
   }
 
   if (eventType === "payment.failed") {
@@ -191,11 +195,9 @@ export async function processWebhookEvent(payload: unknown): Promise<WebhookResu
     if (!order) {
       return { ok: true, action: "skipped_unknown_order" };
     }
-    // Never downgrade a successfully paid order
     if (order.paymentStatus === "PAID") {
       return { ok: true, action: "no_downgrade" };
     }
-    // Idempotency: already FAILED → no-op
     if (order.paymentStatus === "FAILED") {
       return { ok: true, action: "already_failed" };
     }

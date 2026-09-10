@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { verifyRazorpaySignature } from "@/lib/payments/razorpay";
+import { applyPaymentCapture } from "@/lib/payments/webhook";
 
 export async function verifyCustomerPayment(
   userId: string,
@@ -18,6 +19,7 @@ export async function verifyCustomerPayment(
 
   const order = await prisma.order.findFirst({
     where: { razorpayOrderId, userId },
+    select: { id: true },
   });
   if (!order) {
     return { ok: false as const, error: "Payment could not be verified.", status: 400 as const };
@@ -32,14 +34,19 @@ export async function verifyCustomerPayment(
     return { ok: false as const, error: "Payment could not be verified.", status: 400 as const };
   }
 
-  await prisma.order.update({
+  const result = await applyPaymentCapture({
+    razorpayOrderId,
+    razorpayPaymentId,
+  });
+
+  const updatedOrder = await prisma.order.findUnique({
     where: { id: order.id },
-    data: { razorpayPaymentId },
+    select: { paymentStatus: true },
   });
 
   return {
     ok: true as const,
     orderId: order.id,
-    paymentStatus: order.paymentStatus,
+    paymentStatus: updatedOrder?.paymentStatus || "PENDING",
   };
 }

@@ -164,19 +164,40 @@ export async function updateAdminOrder(orderId: string, body: Record<string, unk
   // Null-stock products are skipped (they were never deducted).
   // Non-PAID orders (PENDING/FAILED) never had stock deducted — no restoration.
   //
-  // The existing canTransition rules guarantee CANCELLED has no further transitions,
-  // so this restoration block can never run twice for the same order.
-  if (nextStatus === "CANCELLED" && existing.paymentStatus === "PAID") {
+  // Cancellation uses an atomic updateMany guarded by orderStatus: "PLACED"
+  // so that concurrent admin requests cannot double-restore stock. If the
+  // order has already been cancelled or moved to CONFIRMED+, the update
+  // affects 0 rows and we return an error instead of silently succeeding.
+  if (nextStatus === "CANCELLED") {
     const updatedOrder = await prisma.$transaction(async (tx) => {
-      // Restore numeric stock for each item in the cancelled order.
-      for (const item of existing.items) {
-        await tx.product.updateMany({
-          where: { sku: item.sku, stock: { not: null } },
-          data: { stock: { increment: item.qty } },
-        });
+      const cancelled = await tx.order.updateMany({
+        where: { id: orderId, orderStatus: "PLACED" },
+        data,
+      });
+
+      if (cancelled.count === 0) {
+        return null;
       }
-      return tx.order.update({ where: { id: orderId }, data, include: orderInclude });
+
+      if (existing.paymentStatus === "PAID") {
+        for (const item of existing.items) {
+          await tx.product.updateMany({
+            where: { sku: item.sku, stock: { not: null } },
+            data: { stock: { increment: item.qty } },
+          });
+        }
+      }
+
+      return tx.order.findUnique({
+        where: { id: orderId },
+        include: orderInclude,
+      });
     });
+
+    if (!updatedOrder) {
+      return { ok: false as const, error: "This order can no longer be cancelled.", status: 400 as const };
+    }
+
     return { ok: true as const, order: publicAdminOrder(updatedOrder) };
   }
 

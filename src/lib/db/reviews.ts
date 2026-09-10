@@ -188,6 +188,7 @@ export async function checkVerifiedPurchase(userId: string, productSku: string):
     where: {
       userId,
       paymentStatus: "PAID",
+      orderStatus: { not: "CANCELLED" },
       items: {
         some: {
           sku: productSku,

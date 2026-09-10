@@ -1,5 +1,6 @@
 import { jsonError, originOk } from "@/lib/auth/helpers";
 import { verifyRazorpaySignature } from "@/lib/payments/razorpay";
+import { applyPaymentCapture } from "@/lib/payments/webhook";
 import { prisma } from "@/lib/db/prisma";
 
 export const runtime = "nodejs";
@@ -24,7 +25,7 @@ export async function POST(request: Request) {
 
   const order = await prisma.order.findFirst({
     where: { razorpayOrderId },
-    include: { items: true },
+    select: { id: true, paymentStatus: true },
   });
   if (!order) {
     return jsonError("Order not found.", 404);
@@ -39,22 +40,19 @@ export async function POST(request: Request) {
     return jsonError("Invalid payment signature.", 400);
   }
 
-  const updated = await prisma.order.updateMany({
-    where: { id: order.id, paymentStatus: { not: "PAID" } },
-    data: { paymentStatus: "PAID", razorpayPaymentId },
+  const result = await applyPaymentCapture({
+    razorpayOrderId,
+    razorpayPaymentId,
   });
 
-  if (updated.count === 0) {
-    return Response.json({
-      ok: true,
-      orderId: order.id,
-      paymentStatus: order.paymentStatus,
-    });
-  }
+  const updatedOrder = await prisma.order.findUnique({
+    where: { id: order.id },
+    select: { paymentStatus: true },
+  });
 
   return Response.json({
     ok: true,
     orderId: order.id,
-    paymentStatus: "PAID",
+    paymentStatus: updatedOrder?.paymentStatus || order.paymentStatus,
   });
 }

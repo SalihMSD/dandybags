@@ -29,7 +29,7 @@ export async function createShareReward(input: {
   postProofUrl?: string;
 }): Promise<{ ok: true; rewardId: string } | { ok: false; error: string }> {
   const order = await prisma.order.findFirst({
-    where: { id: input.orderId, userId: input.userId, paymentStatus: "PAID" },
+    where: { id: input.orderId, userId: input.userId, paymentStatus: "PAID", orderStatus: { not: "CANCELLED" } },
     select: { id: true },
   });
 
@@ -100,7 +100,7 @@ export async function listAllShareRewards(status?: string) {
   const orderIds = [...new Set(rewards.map((r) => r.orderId))];
   const orders = orderIds.length
     ? await prisma.order.findMany({
-        where: { id: { in: orderIds } },
+        where: { id: { in: orderIds }, paymentStatus: "PAID", orderStatus: { not: "CANCELLED" } },
         select: { id: true, paymentStatus: true, items: { select: { qty: true, unitPrice: true } } },
       })
     : [];
@@ -152,7 +152,7 @@ export async function approveShareReward(rewardId: string, reviewerId: string, r
   }
 
   const order = await prisma.order.findFirst({
-    where: { id: reward.orderId, userId: reward.userId, paymentStatus: "PAID" },
+    where: { id: reward.orderId, userId: reward.userId, paymentStatus: "PAID", orderStatus: { not: "CANCELLED" } },
     select: { id: true, totalLabel: true, items: { select: { qty: true, unitPrice: true } } },
   });
 
