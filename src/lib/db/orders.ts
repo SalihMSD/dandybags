@@ -188,3 +188,53 @@ export async function checkoutCustomerOrder(userId: string, addressId: string) {
     return { ok: false as const, error: "Something went wrong. Please try again.", status: 500 as const };
   }
 }
+
+export async function cancelCustomerOrder(userId: string, orderId: string) {
+  const existing = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: { items: { orderBy: { sku: "asc" as const } } },
+  });
+
+  if (!existing || existing.userId !== userId) {
+    return { ok: false as const, error: "Order not found.", status: 404 as const };
+  }
+
+  if (existing.orderStatus !== "PLACED") {
+    return { ok: false as const, error: "This order can no longer be cancelled.", status: 400 as const };
+  }
+
+  try {
+    const updated = await prisma.$transaction(async (tx) => {
+      const result = await tx.order.updateMany({
+        where: { id: orderId, orderStatus: "PLACED" },
+        data: { orderStatus: "CANCELLED" },
+      });
+
+      if (result.count === 0) {
+        return null;
+      }
+
+      if (existing.paymentStatus === "PAID") {
+        for (const item of existing.items) {
+          await tx.product.updateMany({
+            where: { sku: item.sku, stock: { not: null } },
+            data: { stock: { increment: item.qty } },
+          });
+        }
+      }
+
+      return tx.order.findUnique({
+        where: { id: orderId },
+        include: orderInclude,
+      });
+    });
+
+    if (!updated) {
+      return { ok: false as const, error: "This order can no longer be cancelled.", status: 400 as const };
+    }
+
+    return { ok: true as const, order: publicOrder(updated) };
+  } catch {
+    return { ok: false as const, error: "Something went wrong. Please try again.", status: 500 as const };
+  }
+}

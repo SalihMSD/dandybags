@@ -61,6 +61,10 @@ export default function OrderDetailPage() {
   const [error, setError] = useState("");
   const [reviewStatus, setReviewStatus] = useState<ReviewStatus | null>(null);
   const [modalProduct, setModalProduct] = useState<{ sku: string; name: string; reviewId?: string | null } | null>(null);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [cancelPending, setCancelPending] = useState(false);
+  const [cancelError, setCancelError] = useState("");
+  const [cancelSuccess, setCancelSuccess] = useState(false);
 
   useEffect(() => {
     if (!params.orderId) return;
@@ -116,6 +120,32 @@ export default function OrderDetailPage() {
         Write Review
       </button>
     );
+  }
+
+  async function handleCancel() {
+    if (!order) return;
+    setCancelPending(true);
+    setCancelError("");
+
+    try {
+      const res = await fetch(`/api/customer/orders/${order.id}/cancel`, {
+        method: "POST",
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const data = (await res.json().catch(() => ({}))) as { error?: string };
+        throw new Error(data.error || "Unable to cancel this order right now.");
+      }
+
+      setOrder((prev) => (prev ? { ...prev, orderStatus: "CANCELLED" } : null));
+      setShowCancelConfirm(false);
+      setCancelSuccess(true);
+    } catch (err) {
+      setCancelError(err instanceof Error ? err.message : "Unable to cancel this order right now.");
+    } finally {
+      setCancelPending(false);
+    }
   }
 
   const displayItems = order ? order.items.map((item) => {
@@ -229,6 +259,25 @@ export default function OrderDetailPage() {
         </p>
       </div>
 
+      {order.orderStatus === "PLACED" && (
+        <div className="mt-6">
+          <button
+            type="button"
+            onClick={() => {
+              setShowCancelConfirm(true);
+              setCancelError("");
+            }}
+            disabled={cancelPending}
+            className="inline-flex h-12 items-center justify-center border border-red-800 px-6 text-[11px] tracking-[0.12em] uppercase text-red-800 hover:bg-red-50 disabled:opacity-60 disabled:cursor-not-allowed"
+          >
+            Cancel Order
+          </button>
+          {cancelSuccess && (
+            <p className="mt-3 text-sm text-green-800">Your order has been cancelled.</p>
+          )}
+        </div>
+      )}
+
       <div className="mt-6 flex flex-col gap-3 sm:flex-row">
         <Link
           href="/track-order"
@@ -255,6 +304,41 @@ export default function OrderDetailPage() {
             setModalProduct(null);
           }}
         />
+      )}
+
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded border border-ink/10 bg-paper p-6 shadow-lg">
+            <h3 className="font-serif text-xl">Cancel this order?</h3>
+            <p className="mt-3 text-sm text-ink-soft">
+              This action cannot be undone. Once cancelled, this order cannot be recovered.
+            </p>
+            {cancelError && (
+              <p className="mt-3 text-sm text-red-800">{cancelError}</p>
+            )}
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowCancelConfirm(false);
+                  setCancelError("");
+                }}
+                disabled={cancelPending}
+                className="inline-flex h-12 items-center justify-center border border-ink/15 px-6 text-[11px] tracking-[0.12em] uppercase hover:bg-cream disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCancel()}
+                disabled={cancelPending}
+                className="inline-flex h-12 items-center justify-center border border-red-800 bg-red-800 px-6 text-[11px] tracking-[0.12em] uppercase text-paper hover:bg-red-900 disabled:opacity-60 disabled:cursor-not-allowed"
+              >
+                {cancelPending ? "Cancelling..." : "Yes, Cancel Order"}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
