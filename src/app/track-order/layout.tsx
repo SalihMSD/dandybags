@@ -3,18 +3,18 @@ import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Track Order",
-  description: "Track your DANDY order status, delivery updates and payment details using your phone number.",
+  description: "Track your DANDY order using your order ID and phone number.",
   alternates: { canonical: "/track-order" },
   openGraph: {
     title: "Track Order — DANDY",
-    description: "Track your DANDY order status, delivery updates and payment details using your phone number.",
+    description: "Track your DANDY order using your order ID and phone number.",
     url: "/track-order",
     siteName: "DANDY",
   },
   twitter: {
     card: "summary_large_image",
     title: "Track Order — DANDY",
-    description: "Track your DANDY order status, delivery updates and payment details using your phone number.",
+    description: "Track your DANDY order using your order ID and phone number.",
   },
 };
 

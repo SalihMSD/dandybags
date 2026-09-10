@@ -35,112 +35,22 @@ const statusColor: Record<string, string> = {
 };
 
 function TrackOrderContent() {
-  const [step, setStep] = useState<"phone" | "otp" | "orders" | "detail">("phone");
+  const [orderId, setOrderId] = useState("");
   const [phone, setPhone] = useState("");
-  const [trackingId, setTrackingId] = useState("");
-  const [otp, setOtp] = useState("");
-  const [orders, setOrders] = useState<Order[]>([]);
   const [order, setOrder] = useState<Order | null>(null);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [otpSent, setOtpSent] = useState(false);
 
-  async function fetchOrders(id: string) {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/track/orders", {
-        headers: { "x-tracking-id": id },
-      });
-      const data = (await res.json()) as { orders?: Order[]; error?: string };
-      if (!res.ok) {
-        setError(data.error || "Failed to load orders.");
-        return;
-      }
-      setOrders(data.orders || []);
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  useEffect(() => {
-    if (typeof window === "undefined") return;
-    const stored = sessionStorage.getItem("dandy-track");
-    if (stored) {
-      try {
-        const data = JSON.parse(stored);
-        if (data.trackingId && data.phone) {
-          setTrackingId(data.trackingId);
-          setPhone(data.phone);
-          setStep("orders");
-          fetchOrders(data.trackingId);
-        }
-      } catch {
-        // ignore
-      }
-    }
-  }, []);
-
-  async function requestOtp(e: React.FormEvent<HTMLFormElement>) {
+  async function lookup(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
     setLoading(true);
     setError("");
+    setOrder(null);
     try {
-      const res = await fetch("/api/track/request-otp", {
+      const res = await fetch("/api/track/lookup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ phone }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string; trackingId?: string };
-      if (!res.ok || !data.ok) {
-        setError(data.error || "Failed to send OTP.");
-        return;
-      }
-      setTrackingId(data.trackingId || "");
-      setOtpSent(true);
-      setStep("otp");
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function verifyOtp(e: React.FormEvent<HTMLFormElement>) {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch("/api/track/verify-otp", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ trackingId, code: otp }),
-      });
-      const data = (await res.json()) as { ok?: boolean; error?: string; phone?: string };
-      if (!res.ok || !data.ok) {
-        setError(data.error || "Invalid OTP.");
-        return;
-      }
-      if (typeof window !== "undefined") {
-        sessionStorage.setItem("dandy-track", JSON.stringify({ trackingId, phone: data.phone }));
-      }
-      setStep("orders");
-      fetchOrders(trackingId);
-    } catch {
-      setError("Something went wrong. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  async function viewOrder(orderId: string) {
-    setLoading(true);
-    setError("");
-    try {
-      const res = await fetch(`/api/track/orders/${orderId}`, {
-        headers: { "x-tracking-id": trackingId },
+        body: JSON.stringify({ orderId, phone }),
       });
       const data = (await res.json()) as { order?: Order; error?: string };
       if (!res.ok) {
@@ -148,7 +58,6 @@ function TrackOrderContent() {
         return;
       }
       setOrder(data.order || null);
-      setStep("detail");
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -160,117 +69,48 @@ function TrackOrderContent() {
     <div className="mx-auto max-w-xl px-4 py-16 text-center">
       <h1 className="font-serif text-4xl">Track Order</h1>
       <p className="mt-3 text-sm text-ink-soft">
-        Enter your phone number to look up your orders.
+        Enter your order ID and the phone number used for the order.
       </p>
 
-      {step === "phone" ? (
-        <form onSubmit={requestOtp} className="mx-auto mt-8 max-w-sm space-y-4 text-left">
-          <label className="block text-sm">
-            Phone number *
-            <input
-              required
-              value={phone}
-              onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
-              className="mt-1 w-full border border-ink/15 bg-paper px-4 py-3 text-base outline-none focus:border-ink"
-              placeholder="10-digit mobile"
-            />
-          </label>
-          {error ? <p className="text-sm text-red-800">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={loading}
-            className="h-12 w-full bg-camel text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60"
-          >
-            {loading ? "Sending OTP..." : "Send OTP"}
-          </button>
-        </form>
-      ) : null}
+      <form onSubmit={lookup} className="mx-auto mt-8 max-w-sm space-y-4 text-left">
+        <label className="block text-sm">
+          Order ID *
+          <input
+            required
+            value={orderId}
+            onChange={(e) => setOrderId(e.target.value.trim())}
+            className="mt-1 w-full border border-ink/15 bg-paper px-4 py-3 text-base outline-none focus:border-ink"
+            placeholder="DND-XXXXXXXX"
+          />
+        </label>
+        <p className="text-xs text-ink-soft">
+          <span className="font-medium">Where can I find my Order ID?</span> Your Order ID is shown on your order confirmation page. Order confirmation email support will be available when transactional order emails are enabled.
+        </p>
+        <label className="block text-sm">
+          Phone number *
+          <input
+            required
+            value={phone}
+            onChange={(e) => setPhone(e.target.value.replace(/\D/g, "").slice(0, 10))}
+            className="mt-1 w-full border border-ink/15 bg-paper px-4 py-3 text-base outline-none focus:border-ink"
+            placeholder="10-digit mobile"
+          />
+        </label>
+        {error ? <p className="text-sm text-red-800">{error}</p> : null}
+        <button
+          type="submit"
+          disabled={loading}
+          className="h-12 w-full bg-camel text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60"
+        >
+          {loading ? "Tracking..." : "Track Order"}
+        </button>
+        <p className="text-center text-xs text-ink-soft">
+          Can&apos;t find your Order ID?{" "}
+          <Link href="/contact" className="underline underline-offset-4">Contact DANDY Support</Link>.
+        </p>
+      </form>
 
-      {step === "otp" ? (
-        <form onSubmit={verifyOtp} className="mx-auto mt-8 max-w-sm space-y-4 text-left">
-          <p className="text-sm text-ink-soft">
-            Enter the OTP sent to {phone}.
-          </p>
-          <label className="block text-sm">
-            OTP *
-            <input
-              required
-              value={otp}
-              onChange={(e) => setOtp(e.target.value.replace(/\D/g, "").slice(0, 6))}
-              className="mt-1 w-full border border-ink/15 bg-paper px-4 py-3 text-base outline-none focus:border-ink"
-              placeholder="6-digit OTP"
-            />
-          </label>
-          {error ? <p className="text-sm text-red-800">{error}</p> : null}
-          <button
-            type="submit"
-            disabled={loading}
-            className="h-12 w-full bg-camel text-[12px] tracking-[0.2em] text-ink uppercase disabled:opacity-60"
-          >
-            {loading ? "Verifying..." : "Verify OTP"}
-          </button>
-          <button
-            type="button"
-            onClick={() => setStep("phone")}
-            className="h-12 w-full border border-ink text-[12px] tracking-[0.2em] uppercase hover:bg-cream"
-          >
-            Change phone number
-          </button>
-        </form>
-      ) : null}
-
-      {step === "orders" && orders.length === 0 && !loading ? (
-        <div className="mt-8">
-          <p className="text-sm text-ink-soft">No orders found for this phone number.</p>
-          <Link href="/shop" className="mt-6 inline-flex h-12 items-center justify-center border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream">
-            Continue Shopping
-          </Link>
-        </div>
-      ) : null}
-
-      {step === "orders" && orders.length > 0 ? (
-        <div className="mt-8 text-left">
-          <p className="mb-4 text-sm text-ink-soft">{orders.length} order(s) found.</p>
-          <ul className="space-y-3">
-            {orders.map((o) => (
-              <li key={o.id} className="border border-ink/10 bg-paper">
-                <button
-                  type="button"
-                  onClick={() => viewOrder(o.id)}
-                  className="flex w-full items-center justify-between border-b border-ink/5 px-4 py-3 text-left hover:bg-cream"
-                >
-                  <div>
-                    <p className="font-serif text-lg">{o.id}</p>
-                    <p className="text-xs text-ink-soft">{new Date(o.createdAt).toLocaleDateString("en-IN")}</p>
-                  </div>
-                  <span className={`text-[11px] tracking-[0.12em] uppercase ${statusColor[o.paymentStatus] || "bg-cream text-ink-soft"}`}>
-                    {o.paymentStatus}
-                  </span>
-                </button>
-                <div className="px-4 py-3">
-                  {o.items.map((i) => (
-                    <div key={i.name} className="flex items-center gap-3 py-2">
-                      <div className="relative aspect-square w-10 shrink-0 overflow-hidden bg-cream">
-                        <img src={i.image} alt={i.name} className="object-cover" sizes="40px" />
-                      </div>
-                      <div className="flex-1 text-sm">
-                        <p className="line-clamp-1">{i.name}</p>
-                        <p className="text-xs text-ink-soft">Qty: {i.qty}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-                <div className="flex items-center justify-between border-t border-ink/5 px-4 py-3 text-sm">
-                  <span className="text-ink-soft">{o.orderStatus}</span>
-                  <span className="font-medium">{o.totalLabel}</span>
-                </div>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ) : null}
-
-      {step === "detail" && order ? (
+      {order ? (
         <div className="mt-8 text-left">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <p className="font-medium">Order ID: {order.id}</p>
@@ -314,17 +154,14 @@ function TrackOrderContent() {
               )}
             </p>
           </div>
-          <div className="mt-6 flex flex-col gap-3 sm:flex-row">
+          <div className="mt-6">
             <button
               type="button"
-              onClick={() => setStep("orders")}
+              onClick={() => setOrder(null)}
               className="inline-flex h-12 items-center justify-center border border-ink px-8 text-[12px] tracking-[0.2em] uppercase hover:bg-cream"
             >
-              Back to Orders
+              Track Another Order
             </button>
-            <Link href="/shop" className="inline-flex h-12 items-center justify-center bg-camel px-8 text-[12px] tracking-[0.2em] text-ink uppercase">
-              Continue Shopping
-            </Link>
           </div>
         </div>
       ) : null}
