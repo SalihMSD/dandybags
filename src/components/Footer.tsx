@@ -54,12 +54,12 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/shipping" className="hover:text-camel-dark">
-                  Shipping
+                  Shipping & Delivery
                 </Link>
               </li>
               <li>
                 <Link href="/returns" className="hover:text-camel-dark">
-                  Returns
+                  Cancellation, Return & Refund
                 </Link>
               </li>
               <li>
@@ -69,7 +69,7 @@ export function Footer() {
               </li>
               <li>
                 <Link href="/terms" className="hover:text-camel-dark">
-                  Terms
+                  Terms & Conditions
                 </Link>
               </li>
             </ul>

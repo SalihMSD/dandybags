@@ -699,6 +699,13 @@ export default function CheckoutPage() {
           >
             {pending ? "Processing…" : `PAY ${formatInr(quote!.finalAmount)}`}
           </button>
+          <p className="mt-3 text-center text-xs text-ink-soft">
+            By placing this order, you agree to DANDY&apos;s{" "}
+            <Link href="/terms" className="underline underline-offset-4">Terms &amp; Conditions</Link>,{" "}
+            <Link href="/privacy" className="underline underline-offset-4">Privacy Policy</Link>,{" "}
+            <Link href="/shipping" className="underline underline-offset-4">Shipping &amp; Delivery Policy</Link>, and{" "}
+            <Link href="/returns" className="underline underline-offset-4">Cancellation, Return &amp; Refund Policy</Link>.
+          </p>
         </div>
       )}
 
