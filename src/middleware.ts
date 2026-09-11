@@ -48,17 +48,16 @@ export async function middleware(request: NextRequest) {
 
   if (pathname.startsWith("/admin") && pathname !== "/admin/login") {
     if (!auth || auth.role !== "ADMIN") {
-      const url = request.nextUrl.clone();
-      url.pathname = "/admin/login";
-      url.search = "";
-      return NextResponse.redirect(url);
+      const response = NextResponse.redirect(new URL("/admin/login", request.url));
+      response.headers.set("X-Robots-Tag", "noindex, nofollow");
+      return response;
     }
   }
 
   if (pathname === "/admin/login" && auth?.role === "ADMIN") {
-    const url = request.nextUrl.clone();
-    url.pathname = "/admin";
-    return NextResponse.redirect(url);
+    const response = NextResponse.redirect(new URL("/admin", request.url));
+    response.headers.set("X-Robots-Tag", "noindex, nofollow");
+    return response;
   }
 
   if ((pathname === "/login" || pathname === "/register") && auth?.role === "CUSTOMER") {
