@@ -2,7 +2,7 @@ import { prisma } from "@/lib/db/prisma";
 import { publicOrder } from "@/lib/db/orders";
 
 export async function getAdminOverview() {
-  const [customerCount, orderCount, addressCount, productCount, recentOrders] = await Promise.all([
+  const [customerCount, orderCount, addressCount, productCount, recentOrders, totalPaidRevenue] = await Promise.all([
     prisma.user.count({ where: { role: "CUSTOMER" } }),
     prisma.order.count(),
     prisma.address.count(),
@@ -12,7 +12,19 @@ export async function getAdminOverview() {
       orderBy: { createdAt: "desc" },
       take: 10,
     }),
+    prisma.$queryRaw<Array<{ total: string }>>`
+      SELECT SUM(
+        CAST(
+          REGEXP_REPLACE(o."totalLabel", '[^0-9.]', '', 'g')
+          AS NUMERIC
+        )
+      )::text AS total
+      FROM "orders" o
+      WHERE o."paymentStatus" = 'PAID'
+    `,
   ]);
+
+  const revenue = totalPaidRevenue[0]?.total ? Number(totalPaidRevenue[0].total) : 0;
 
   return {
     customers: [],
@@ -23,5 +35,6 @@ export async function getAdminOverview() {
       addresses: addressCount,
       products: productCount,
     },
+    totalRevenue: Math.round(revenue),
   };
 }

@@ -20,6 +20,7 @@ type OverviewData = {
     products: number;
   };
   orders: OverviewOrder[];
+  totalRevenue: number;
 };
 
 function StatCard({ label, value, subtitle }: { label: string; value: string; subtitle?: string }) {
@@ -44,20 +45,15 @@ export default function AdminDashboard() {
         const d = (await r.json()) as {
           counts: { customers: number; orders: number; addresses: number; products: number };
           orders: OverviewOrder[];
+          totalRevenue: number;
         };
-        setData({ counts: d.counts, orders: d.orders });
+        setData({ counts: d.counts, orders: d.orders, totalRevenue: d.totalRevenue });
       })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
   }, []);
 
-  function parseTotal(label: string): number {
-    const num = Number(label.replace(/[^0-9.]/g, ""));
-    return isNaN(num) ? 0 : num;
-  }
-
   const paidOrders = data?.orders.filter((o) => o.paymentStatus === "PAID") ?? [];
-  const revenue = paidOrders.reduce((sum, o) => sum + parseTotal(o.totalLabel), 0);
   const recentOrders = data?.orders.slice(0, 8) ?? [];
   const pendingOrders = data?.orders.filter((o) => o.paymentStatus === "PENDING") ?? [];
 
@@ -75,7 +71,7 @@ export default function AdminDashboard() {
         <StatCard label="Total Orders" value={data?.counts.orders.toLocaleString() || "0"} subtitle={`${paidOrders.length} paid`} />
         <StatCard label="Customers" value={data?.counts.customers.toLocaleString() || "0"} />
         <StatCard label="Products" value={data?.counts.products.toLocaleString() || "0"} />
-         <StatCard label="Total Revenue" value={`₹${Math.round(revenue).toLocaleString("en-IN")}`} subtitle={`${paidOrders.length} paid orders`} />
+         <StatCard label="Total Revenue" value={`₹${(data?.totalRevenue ?? 0).toLocaleString("en-IN")}`} subtitle={`${paidOrders.length} paid orders`} />
       </div>
 
       <div className="grid gap-4 lg:grid-cols-2">
