@@ -8,8 +8,9 @@ import { getCategory } from "@/lib/categories";
 import { getSessionUser } from "@/lib/auth/session";
 import { getWishlistSkus } from "@/lib/db/wishlist";
 import { getPublicProductBySlug, listProductsByCategory } from "@/lib/db/products";
+import { getReviewSummary } from "@/lib/db/reviews";
 import { discountPercent, formatInr } from "@/lib/format";
-import { site } from "@/lib/site";
+import { site, siteUrl } from "@/lib/site";
 
 type Props = { params: Promise<{ slug: string }> };
 
@@ -49,19 +50,54 @@ export default async function ProductPage({ params }: Props) {
   const user = await getSessionUser();
   const wishlistSkus = user ? await getWishlistSkus(user.id) : [];
 
-  const jsonLd = {
+  const summary = await getReviewSummary(product.sku);
+
+  const productUrl = `${siteUrl()}/shop/${product.slug}`;
+  const imageUrl = product.images.master.startsWith("/")
+    ? `${siteUrl()}${product.images.master}`
+    : product.images.master;
+
+  const jsonLd: Record<string, unknown> = {
     "@context": "https://schema.org",
     "@type": "Product",
     name: product.name,
     sku: product.sku,
     brand: { "@type": "Brand", name: site.name },
     description: product.description,
-    image: product.images.master,
+    image: imageUrl,
+    url: productUrl,
+    category: cat?.name ?? product.category,
   };
+
+  if (product.sellingPrice != null && Number.isFinite(product.sellingPrice) && product.sellingPrice > 0) {
+    jsonLd.offers = {
+      "@type": "Offer",
+      price: product.sellingPrice,
+      priceCurrency: "INR",
+      availability:
+        product.b2cAvailable && (product.stock === null || product.stock > 0)
+          ? "https://schema.org/InStock"
+          : "https://schema.org/OutOfStock",
+      url: productUrl,
+    };
+  }
+
+  if (summary && summary.totalReviews > 0) {
+    jsonLd.aggregateRating = {
+      "@type": "AggregateRating",
+      ratingValue: summary.averageRating,
+      reviewCount: summary.totalReviews,
+      bestRating: 5,
+      worstRating: 1,
+    };
+  }
 
   return (
     <div className="mx-auto max-w-7xl px-4 py-8 sm:py-12 md:px-8">
-      <script type="application/ld+json" dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }} />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd).replace(/<\//g, "<\\/") }}
+      />
       <div className="grid gap-10 lg:grid-cols-2 lg:gap-16">
         <ProductGallery product={product} />
         <div>
