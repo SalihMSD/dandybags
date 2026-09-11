@@ -3,6 +3,7 @@ import { site } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "Track Order",
+  robots: { index: false, follow: true },
   description: "Track your DANDY order using your order ID and phone number.",
   alternates: { canonical: "/track-order" },
   openGraph: {

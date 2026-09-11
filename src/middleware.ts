@@ -72,6 +72,10 @@ export async function middleware(request: NextRequest) {
     response.headers.set("X-Robots-Tag", "noindex, nofollow");
   }
 
+  if (pathname.startsWith("/account")) {
+    response.headers.set("X-Robots-Tag", "noindex, follow");
+  }
+
   return response;
 }
 
