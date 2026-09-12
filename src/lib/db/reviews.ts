@@ -264,7 +264,7 @@ export async function updateReview(reviewId: string, userId: string, input: { ra
 
 export async function getOrderReviewStatus(userId: string, orderId: string) {
   const order = await prisma.order.findFirst({
-    where: { id: orderId, userId, paymentStatus: "PAID" },
+    where: { id: orderId, userId, paymentStatus: "PAID", orderStatus: { not: "CANCELLED" } },
     include: {
       items: {
         select: { sku: true, name: true, qty: true, image: true },

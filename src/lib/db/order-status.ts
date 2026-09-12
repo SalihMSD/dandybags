@@ -23,6 +23,12 @@ export function canTransition(from: OrderStatus, to: OrderStatus) {
   return allowedNextStatuses(from).includes(to);
 }
 
+export function isReviewableOrder(orderStatus: OrderStatus, paymentStatus: string): boolean {
+  if (orderStatus === "CANCELLED") return false;
+  if (paymentStatus !== "PAID") return false;
+  return true;
+}
+
 export function parseDeliveryField(value: unknown, max: number) {
   const text = String(value ?? "").trim();
   if (!text) return "";
