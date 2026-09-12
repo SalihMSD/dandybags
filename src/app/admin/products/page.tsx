@@ -36,7 +36,7 @@ const CATEGORIES = [
   "school-bags",
   "college-bags",
   "backpacks",
-  " travel-bags",
+  "travel-bags",
   "sling-bags",
   "handbags",
   "ladies-purses",

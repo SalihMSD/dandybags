@@ -48,7 +48,7 @@ export function ProductGallery({ product }: { product: Product }) {
             >
               <AssetImage
                 src={img.src}
-                alt={img.key}
+                alt={`${product.name} — ${img.key}`}
                 fill
                 className="object-cover object-center"
                 sizes="80px"

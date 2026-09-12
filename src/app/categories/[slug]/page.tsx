@@ -16,6 +16,19 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     title: c.name,
     description: `${c.description} DANDY bags, Karur, Tamil Nadu.`,
     alternates: { canonical: `/categories/${slug}` },
+    openGraph: {
+      title: c.name,
+      description: `${c.description} DANDY bags, Karur, Tamil Nadu.`,
+      url: `/categories/${slug}`,
+      siteName: "DANDY",
+      type: "website",
+      locale: "en_IN",
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: c.name,
+      description: `${c.description} DANDY bags, Karur, Tamil Nadu.`,
+    },
   };
 }
 

@@ -6,7 +6,7 @@ import { HeroCarousel } from "@/components/HeroCarousel";
 import { ProductRail } from "@/components/ProductRail";
 import { categories } from "@/lib/categories";
 import { listFeaturedProducts, listNewArrivals, type Product } from "@/lib/db/products";
-import { site } from "@/lib/site";
+import { site, siteUrl } from "@/lib/site";
 
 export const metadata: Metadata = {
   title: "DANDY — Bags for every journey",
@@ -30,7 +30,7 @@ const jsonLd = {
   "@type": "Organization",
   name: site.name,
   description: site.description,
-  url: "https://dandyonline.in",
+  url: siteUrl(),
   contactPoint: {
     "@type": "ContactPoint",
     telephone: "+91-90252-66485",
