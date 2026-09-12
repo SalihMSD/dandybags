@@ -1,6 +1,6 @@
 import { jsonError } from "@/lib/auth/helpers";
 import { requireAdmin } from "@/lib/auth/session";
-import { getAdminAnalytics } from "@/lib/db/analytics";
+import { AnalyticsRangeError, getAdminAnalytics } from "@/lib/db/analytics";
 
 export const runtime = "nodejs";
 
@@ -18,7 +18,8 @@ export async function GET(request: Request) {
   try {
     const analytics = await getAdminAnalytics(start || end ? { start, end } : undefined);
     return Response.json(analytics);
-  } catch {
+  } catch (e) {
+    if (e instanceof AnalyticsRangeError) return jsonError(e.message, 400);
     return jsonError("Something went wrong. Please try again.", 500);
   }
 }

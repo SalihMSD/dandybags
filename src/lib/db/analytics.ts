@@ -1,51 +1,19 @@
 import { prisma } from "@/lib/db/prisma";
 import { formatIndiaDate, indiaDateToUtcRange, subtractDays } from "@/lib/format";
+import { resolveAnalyticsRange, AnalyticsRangeError } from "./analytics-range";
+import type { AnalyticsDateRange } from "./analytics-range";
+
+export { resolveAnalyticsRange, AnalyticsRangeError, ANALYTICS_MAX_RANGE_DAYS } from "./analytics-range";
+export type { AnalyticsDateRange } from "./analytics-range";
 
 export function parseTotalLabel(label: string): number {
   const num = Number(label.replace(/[^0-9.]/g, ""));
   return isNaN(num) ? 0 : num;
 }
 
-export type AnalyticsDateRange = {
-  start?: string;
-  end?: string;
-};
-
 export async function getAdminAnalytics(range?: AnalyticsDateRange) {
-  const now = new Date();
-  const todayIndiaStr = formatIndiaDate(now);
-
-  let start: Date;
-  let end: Date;
-
-  if (range?.start && range?.end) {
-    const startRange = indiaDateToUtcRange(range.start);
-    const endRange = indiaDateToUtcRange(range.end);
-    start = startRange.start;
-    end = endRange.endExclusive;
-    if (end < start) {
-      const tmp = start;
-      start = end;
-      end = tmp;
-    }
-  } else if (range?.start) {
-    const startRange = indiaDateToUtcRange(range.start);
-    start = startRange.start;
-    end = new Date();
-  } else if (range?.end) {
-    const endRange = indiaDateToUtcRange(range.end);
-    end = endRange.endExclusive;
-    start = new Date(Date.UTC(2000, 0, 1));
-  } else {
-    const year = Number(todayIndiaStr.substring(0, 4));
-    const month = Number(todayIndiaStr.substring(5, 7));
-    const thisMonth = `${year}-${String(month).padStart(2, "0")}`;
-    const thisMonthStart = indiaDateToUtcRange(`${thisMonth}-01`);
-    const nextMonth = month === 12 ? `${year + 1}-01-01` : `${year}-${String(month + 1).padStart(2, "0")}-01`;
-    const nextMonthStart = indiaDateToUtcRange(nextMonth);
-    start = thisMonthStart.start;
-    end = nextMonthStart.start;
-  }
+  const todayIndiaStr = formatIndiaDate(new Date());
+  const { start, end } = resolveAnalyticsRange(range, todayIndiaStr);
 
   const whereClause = { gte: start, lt: end };
 
