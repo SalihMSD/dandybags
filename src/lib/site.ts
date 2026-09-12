@@ -19,7 +19,7 @@ export const site = {
     previousLocation: "Erode, Tamil Nadu",
   },
   whatsapp: process.env.NEXT_PUBLIC_WHATSAPP || "919047633332",
-  instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "https://www.instagram.com/dandybagsonline.in/",
+  instagram: process.env.NEXT_PUBLIC_INSTAGRAM || "https://www.instagram.com/dandyonline.in/",
   facebook: process.env.NEXT_PUBLIC_FACEBOOK || "",
 } as const;
 

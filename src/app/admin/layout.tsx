@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { useRouter, usePathname } from "next/navigation";
 import Link from "next/link";
 import { useAuth } from "@/components/AuthProvider";
+import AdminNotificationsBell from "@/components/admin/AdminNotificationsBell";
 
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: "📊" },
@@ -162,6 +163,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
             <h1 className="font-serif text-2xl">{currentLabel}</h1>
           </div>
           <div className="flex items-center gap-3 text-sm text-ink-soft">
+            <AdminNotificationsBell />
             <span>Logged in as {user.fullName}</span>
           </div>
         </header>

@@ -133,7 +133,7 @@ function RewardModal({ orderId, onClose }: { orderId: string; onClose: () => voi
             </div>
           )}
           <p className="text-xs text-ink-soft">
-            Make sure you have tagged <strong>@dandybagsonline.in</strong> in your Story/Post.
+            Make sure you have tagged <strong>@dandyonline.in</strong> in your Story/Post.
           </p>
           <div className="flex gap-3">
             <button
@@ -194,7 +194,7 @@ export default function ShareEarnPage() {
       <h1 className="font-serif text-4xl">Share & Earn</h1>
       <p className="mt-4 max-w-xl text-sm text-ink-soft">
         Share your Dandy Bags purchase on Instagram and earn coupons for your next order.
-        Tag <strong>@dandybagsonline.in</strong> in your Story and/or Post.
+        Tag <strong>@dandyonline.in</strong> in your Story and/or Post.
       </p>
 
       <div className="mt-8 rounded border border-ink/10 bg-paper p-6">
@@ -203,13 +203,13 @@ export default function ShareEarnPage() {
           <div className="rounded border border-ink/10 bg-cream p-4">
             <p className="text-sm font-medium">5% OFF</p>
             <p className="mt-1 text-xs text-ink-soft">
-              Post an Instagram Story for 24 hours tagging @dandybagsonline.in
+              Post an Instagram Story for 24 hours tagging @dandyonline.in
             </p>
           </div>
           <div className="rounded border border-ink/10 bg-cream p-4">
             <p className="text-sm font-medium">10% OFF</p>
             <p className="mt-1 text-xs text-ink-soft">
-              Post an Instagram Story + Feed Post, both tagging @dandybagsonline.in
+              Post an Instagram Story + Feed Post, both tagging @dandyonline.in
             </p>
           </div>
         </div>

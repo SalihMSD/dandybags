@@ -106,14 +106,14 @@ export default async function HomePage() {
               Share your Dandy Bag &amp; earn rewards
             </h2>
             <p className="mt-4 text-sm leading-relaxed text-ink-soft sm:text-base">
-              Post your Dandy Bag on Instagram and tag <strong>@dandybagsonline.in</strong>.
+              Post your Dandy Bag on Instagram and tag <strong>@dandyonline.in</strong>.
               <br />
               Story for 24 hours → Earn <strong>5% of your paid bill</strong> as a coupon.
               <br />
               Story + Post → Earn <strong>10% of your paid bill</strong> as a coupon.
             </p>
             <p className="mt-2 text-xs text-ink-soft">
-              Tagging <strong>@dandybagsonline.in</strong> is required.
+              Tagging <strong>@dandyonline.in</strong> is required.
             </p>
             <Link
               href="/account/share-rewards"

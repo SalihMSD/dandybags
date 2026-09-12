@@ -14,6 +14,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/db/prisma";
 import { sendOrderConfirmationForOrder, shouldSendConfirmation } from "@/lib/auth/mail";
+import { createOrderNotification } from "@/lib/db/notifications";
 
 function webhookSecret() {
   return (process.env.RAZORPAY_WEBHOOK_SECRET || "").trim();
@@ -146,6 +147,12 @@ export async function applyPaymentCapture(params: {
     if (shouldSendConfirmation(action) && markedOrderId) {
       await sendOrderConfirmationForOrder(markedOrderId).catch((err: unknown) => {
         console.error("[DANDY mail] order confirmation send failed", {
+          orderId: markedOrderId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+      await createOrderNotification(markedOrderId).catch((err: unknown) => {
+        console.error("[DANDY notif] order notification create failed", {
           orderId: markedOrderId,
           error: err instanceof Error ? err.message : String(err),
         });

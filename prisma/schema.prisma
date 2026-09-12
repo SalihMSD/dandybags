@@ -37,6 +37,10 @@ enum OrderStatus {
   CANCELLED
 }
 
+enum NotificationType {
+  NEW_ORDER
+}
+
 enum ReviewStatus {
   PENDING
   APPROVED
@@ -177,6 +181,20 @@ model Order {
 
   @@index([userId, createdAt])
   @@map("orders")
+}
+
+model Notification {
+  id        String           @id
+  type      NotificationType
+  orderId   String
+  title     String
+  message   String
+  read      Boolean          @default(false)
+  createdAt DateTime         @default(now())
+
+  @@unique([orderId, type])
+  @@index([read, createdAt])
+  @@map("notifications")
 }
 
 model OrderItem {
