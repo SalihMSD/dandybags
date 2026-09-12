@@ -1,6 +1,10 @@
 import nodemailer from "nodemailer";
+import { prisma } from "@/lib/db/prisma";
 import { issueAuthToken } from "@/lib/db/tokens";
 import { siteUrl } from "@/lib/site";
+import { mapOrderToConfirmationInput } from "./confirmation";
+
+export { shouldSendConfirmation, CONFIRMATION_TRIGGER_ACTION } from "./confirmation";
 
 export async function issueToken(userId: string, type: "VERIFY_EMAIL" | "RESET_PASSWORD", hours: number) {
   return issueAuthToken(userId, type, hours);
@@ -91,4 +95,36 @@ export async function sendOrderConfirmation(input: {
   }\nBAGS FOR EVERY JOURNEY`;
 
   await deliverMail(`Order confirmation ${input.orderId}`, input.to, text);
+}
+
+export async function sendOrderConfirmationForOrder(orderId: string): Promise<void> {
+  const order = await prisma.order.findUnique({
+    where: { id: orderId },
+    select: {
+      id: true,
+      totalLabel: true,
+      paymentStatus: true,
+      shipFullName: true,
+      shipPhone: true,
+      shipLine1: true,
+      shipLine2: true,
+      shipCity: true,
+      shipState: true,
+      shipPincode: true,
+      user: { select: { email: true } },
+      items: { select: { name: true, qty: true } },
+    },
+  });
+
+  if (!order) {
+    console.error(`[DANDY mail] order confirmation skipped: order not found (${orderId})`);
+    return;
+  }
+
+  if (!order.user?.email) {
+    console.error(`[DANDY mail] order confirmation skipped: no customer email (${orderId})`);
+    return;
+  }
+
+  await sendOrderConfirmation(mapOrderToConfirmationInput(order));
 }

@@ -13,6 +13,7 @@
  */
 import { createHmac, timingSafeEqual } from "crypto";
 import { prisma } from "@/lib/db/prisma";
+import { sendOrderConfirmationForOrder, shouldSendConfirmation } from "@/lib/auth/mail";
 
 function webhookSecret() {
   return (process.env.RAZORPAY_WEBHOOK_SECRET || "").trim();
@@ -75,6 +76,7 @@ export async function applyPaymentCapture(params: {
   razorpayOrderId: string;
   razorpayPaymentId?: string;
 }): Promise<WebhookResult> {
+  let markedOrderId: string | null = null;
   try {
     const action = await prisma.$transaction(async (tx) => {
       // Serialize concurrent deliveries for this specific Razorpay order.
@@ -134,8 +136,21 @@ export async function applyPaymentCapture(params: {
         });
       }
 
+      if (updated.count > 0) {
+        markedOrderId = order.id;
+      }
+
       return updated.count > 0 ? "marked_paid" : "already_paid";
     });
+
+    if (shouldSendConfirmation(action) && markedOrderId) {
+      await sendOrderConfirmationForOrder(markedOrderId).catch((err: unknown) => {
+        console.error("[DANDY mail] order confirmation send failed", {
+          orderId: markedOrderId,
+          error: err instanceof Error ? err.message : String(err),
+        });
+      });
+    }
 
     return { ok: true, action };
   } catch (err) {
