@@ -37,6 +37,14 @@ type AdminOrder = {
     landmark: string;
   };
   items: AdminOrderItem[];
+  refund: {
+    id: string;
+    status: string;
+    razorpayRefundId: string | null;
+    amount: number;
+    failureReason: string | null;
+    completedAt: string | null;
+  } | null;
 };
 
 export default function AdminOrderDetailPage() {
@@ -46,6 +54,8 @@ export default function AdminOrderDetailPage() {
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
+  const [cancelPending, setCancelPending] = useState(false);
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
 
   useEffect(() => {
     if (!params.orderId) return;
@@ -89,6 +99,86 @@ export default function AdminOrderDetailPage() {
     setMessage("Order updated.");
   }
 
+  async function handleCancelAndRefund() {
+    if (!order) return;
+    setCancelPending(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "cancel" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Cancellation failed.");
+      } else {
+        const refundStatus = data.refundStatus;
+        if (refundStatus === "SUCCESS") {
+          setMessage("Order cancelled. Refund processed successfully.");
+        } else if (refundStatus === "PROCESSING") {
+          setMessage("Order cancelled. Refund is processing.");
+        } else if (refundStatus === "already_refunded") {
+          setMessage("Order cancelled. Refund already applied.");
+        } else if (refundStatus === "not_applicable") {
+          setMessage("Order cancelled. No refund required.");
+        } else {
+          setMessage(data.refundError || "Order cancelled. Refund pending.");
+        }
+        setOrder((prev) =>
+          prev ? { ...prev, orderStatus: "CANCELLED" } : null,
+        );
+      }
+    } catch {
+      setMessage("Something went wrong.");
+    } finally {
+      setCancelPending(false);
+      setShowCancelConfirm(false);
+    }
+  }
+
+  async function handleRetryRefund() {
+    if (!order) return;
+    setCancelPending(true);
+    try {
+      const res = await fetch(`/api/admin/orders/${order.id}`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "retry_refund" }),
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        setMessage(data.error || "Refund retry failed.");
+       } else {
+        const status = data.refundStatus;
+        if (status === "SUCCESS") {
+          setMessage("Refund completed successfully.");
+        } else if (status === "PROCESSING") {
+          setMessage("Refund is being processed.");
+        } else if (status === "PENDING") {
+          setMessage("Refund is pending.");
+        } else {
+          setMessage("Refund retried.");
+        }
+        setOrder((prev) =>
+          prev
+            ? {
+                ...prev,
+                refund: prev.refund
+                  ? { ...prev.refund, status: status === "SUCCESS" ? "SUCCESS" : status === "PROCESSING" ? "PROCESSING" : prev.refund.status }
+                  : null,
+              }
+            : null,
+        );
+      }
+    } catch {
+      setMessage("Something went wrong.");
+    } finally {
+      setCancelPending(false);
+    }
+  }
+
   if (loading) return <p className="text-sm text-ink-soft">Loading order…</p>;
   if (error) return <p className="text-sm text-red-800">{error}</p>;
   if (!order) return <p className="text-sm text-ink-soft">Order not found.</p>;
@@ -128,6 +218,76 @@ export default function AdminOrderDetailPage() {
         </div>
       </div>
 
+      {order.refund && (
+        <div className="rounded border border-ink/10 bg-paper p-4">
+          <p className="font-serif text-lg">
+            Refund:{" "}
+            <span className={
+              order.refund.status === "SUCCESS"
+                ? "text-green-800"
+                : order.refund.status === "FAILED"
+                ? "text-red-800"
+                : order.refund.status === "PROCESSING"
+                ? "text-amber-800"
+                : "text-ink"
+            }>
+            {order.refund.status === "PROCESSING" ? "PROCESSING" : order.refund.status}
+          </span>
+          </p>
+          {order.refund.razorpayRefundId ? (
+            <p className="text-xs text-ink-soft">Razorpay Refund ID: {order.refund.razorpayRefundId}</p>
+          ) : null}
+          {order.refund.failureReason ? (
+            <p className="text-xs text-red-800">Failure: {order.refund.failureReason}</p>
+          ) : null}
+          {order.refund.completedAt ? (
+            <p className="text-xs text-ink-soft">Completed: {new Date(order.refund.completedAt).toLocaleString("en-IN")}</p>
+          ) : null}
+          {(order.refund.status === "FAILED" || order.refund.status === "PENDING") && order.paymentStatus === "PAID" && (
+            <button
+              type="button"
+              onClick={() => void handleRetryRefund()}
+              disabled={cancelPending}
+              className="mt-2 h-8 bg-ink px-4 text-[10px] tracking-[0.16em] uppercase text-paper disabled:opacity-60"
+            >
+              {cancelPending ? "Retrying…" : "Retry Refund"}
+            </button>
+          )}
+        </div>
+      )}
+
+      {order.orderStatus === "PLACED" && order.paymentStatus === "PAID" && !order.refund && (
+        <div className="rounded border border-red-100 bg-red-50 p-4">
+          <p className="text-sm font-medium text-red-800">
+            This is a paid order. Cancelling will initiate a refund via Razorpay.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowCancelConfirm(true)}
+            disabled={cancelPending}
+            className="mt-2 h-9 bg-red-800 px-4 text-[11px] tracking-[0.16em] uppercase text-paper disabled:opacity-60"
+          >
+            {cancelPending ? "Processing…" : "Cancel & Refund"}
+          </button>
+        </div>
+      )}
+
+      {order.orderStatus === "PLACED" && order.paymentStatus === "PENDING" && (
+        <div className="rounded border border-red-100 bg-red-50 p-4">
+          <p className="text-sm font-medium text-red-800">
+            This order has not been paid. Cancelling will not trigger a refund.
+          </p>
+          <button
+            type="button"
+            onClick={() => setShowCancelConfirm(true)}
+            disabled={cancelPending}
+            className="mt-2 h-9 bg-red-800 px-4 text-[11px] tracking-[0.16em] uppercase text-paper disabled:opacity-60"
+          >
+            {cancelPending ? "Processing…" : "Cancel Order"}
+          </button>
+        </div>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-2">
         <div>
           <h2 className="font-serif text-xl">Customer</h2>
@@ -151,6 +311,16 @@ export default function AdminOrderDetailPage() {
       {order.orderStatus === "CANCELLED" ? (
         <div className="rounded border border-red-100 bg-red-50 p-4">
           <p className="text-sm font-medium text-red-800">Order has been cancelled.</p>
+          {order.refund && order.paymentStatus === "PAID" ? (
+            <p className="mt-1 text-xs text-ink-soft">
+              Refund status: {order.refund.status}
+              {order.refund.razorpayRefundId ? ` (Razorpay: ${order.refund.razorpayRefundId})` : ""}
+            </p>
+          ) : order.paymentStatus === "PAID" ? (
+            <p className="mt-1 text-xs text-red-800">Refund is being processed. Please manually refund via Razorpay.</p>
+          ) : (
+            <p className="mt-1 text-xs text-ink-soft">No refund required (order was not paid).</p>
+          )}
         </div>
       ) : (
         <div className="flex items-center gap-2 text-sm">
@@ -264,6 +434,41 @@ export default function AdminOrderDetailPage() {
           </button>
         </form>
       </section>
+
+      {showCancelConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="w-full max-w-md rounded border border-ink/10 bg-paper p-6 shadow-lg">
+            <h3 className="font-serif text-xl">
+              {order.paymentStatus === "PAID"
+                ? "Cancel and refund this order?"
+                : "Cancel this order?"}
+            </h3>
+            <p className="mt-3 text-sm text-ink-soft">
+              {order.paymentStatus === "PAID"
+                ? "This will cancel the order and initiate a full refund via Razorpay. Stock will be restored. Refund processing may take 5–7 business days."
+                : "This will cancel the order without any payment/refund action. Stock will be restored."}
+            </p>
+            <div className="mt-6 flex flex-col-reverse gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={() => setShowCancelConfirm(false)}
+                disabled={cancelPending}
+                className="inline-flex h-12 items-center justify-center border border-ink/15 px-6 text-[12px] tracking-[0.16em] uppercase hover:bg-cream disabled:opacity-60"
+              >
+                Keep Order
+              </button>
+              <button
+                type="button"
+                onClick={() => void handleCancelAndRefund()}
+                disabled={cancelPending}
+                className="inline-flex h-12 items-center justify-center border border-red-800 bg-red-800 px-6 text-[12px] tracking-[0.16em] uppercase text-paper hover:bg-red-900 disabled:opacity-60"
+              >
+                {cancelPending ? "Processing…" : order.paymentStatus === "PAID" ? "Yes, Cancel & Refund" : "Yes, Cancel"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

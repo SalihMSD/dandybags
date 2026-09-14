@@ -39,6 +39,15 @@ enum OrderStatus {
 
 enum NotificationType {
   NEW_ORDER
+  REFUND_SUCCEEDED
+  REFUND_FAILED
+}
+
+enum RefundStatus {
+  PENDING
+  PROCESSING
+  SUCCESS
+  FAILED
 }
 
 enum ReviewStatus {
@@ -176,6 +185,7 @@ model Order {
   couponId           String?
   coupon             Coupon?  @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items         OrderItem[]
+  refund          Refund?
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -195,6 +205,26 @@ model Notification {
   @@unique([orderId, type])
   @@index([read, createdAt])
   @@map("notifications")
+}
+
+model Refund {
+   id                   String       @id
+   orderId              String       @unique
+   order                Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
+   razorpayPaymentId    String
+   razorpayRefundId     String?      @unique
+   idempotencyKey       String       @unique
+   amount               Int
+   currency             String       @default("INR")
+   status               RefundStatus @default(PENDING)
+   failureReason        String?
+   requestedAt          DateTime     @default(now())
+   completedAt          DateTime?
+
+   @@index([status])
+   @@index([orderId])
+   @@index([razorpayPaymentId])
+   @@map("refunds")
 }
 
 model OrderItem {

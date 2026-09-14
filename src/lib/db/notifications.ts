@@ -14,6 +14,8 @@ export type { OrderForNotification };
 const NOTIFICATION_MESSAGE_PREFIX = "#";
 
 export const ORDER_NOTIFICATION_TYPE: NotificationType = "NEW_ORDER";
+export const REFUND_SUCCEEDED_TYPE: NotificationType = "REFUND_SUCCEEDED";
+export const REFUND_FAILED_TYPE: NotificationType = "REFUND_FAILED";
 
 export function buildOrderNotificationFields(order: OrderForNotification) {
   const type: NotificationType = ORDER_NOTIFICATION_TYPE;
@@ -93,4 +95,68 @@ export async function markNotificationRead(id: string) {
 
 export async function markAllNotificationsRead() {
   return prisma.notification.updateMany({ where: { read: false }, data: { read: true } });
+}
+
+export async function createRefundSucceededNotification(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, totalLabel: true },
+    });
+    if (!order) {
+      console.error(`[DANDY notif] refund-succeeded notification skipped: order not found (${orderId})`);
+      return;
+    }
+    await prisma.notification.upsert({
+      where: { orderId_type: { orderId: order.id, type: REFUND_SUCCEEDED_TYPE } },
+      update: {
+        title: "Refund Processed",
+        message: `#${order.id} · ${order.totalLabel ?? ""}`,
+      },
+      create: {
+        id: newId("not"),
+        type: REFUND_SUCCEEDED_TYPE,
+        orderId: order.id,
+        title: "Refund Processed",
+        message: `#${order.id} · ${order.totalLabel ?? ""}`,
+      },
+    });
+  } catch (e) {
+    console.error("[DANDY notif] failed to create refund-succeeded notification", {
+      orderId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+export async function createRefundFailedNotification(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, totalLabel: true },
+    });
+    if (!order) {
+      console.error(`[DANDY notif] refund-failed notification skipped: order not found (${orderId})`);
+      return;
+    }
+    await prisma.notification.upsert({
+      where: { orderId_type: { orderId: order.id, type: REFUND_FAILED_TYPE } },
+      update: {
+        title: "Refund Failed",
+        message: `#${order.id} · ${order.totalLabel ?? ""}`,
+      },
+      create: {
+        id: newId("not"),
+        type: REFUND_FAILED_TYPE,
+        orderId: order.id,
+        title: "Refund Failed",
+        message: `#${order.id} · ${order.totalLabel ?? ""}`,
+      },
+    });
+  } catch (e) {
+    console.error("[DANDY notif] failed to create refund-failed notification", {
+      orderId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
 }

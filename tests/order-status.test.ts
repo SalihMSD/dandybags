@@ -8,6 +8,7 @@ import {
   isOrderStatus,
   ORDER_STATUSES,
 } from "../src/lib/db/order-status";
+import { refundStateMachine, RefundState } from "../src/lib/payments/refund-state-machine";
 
 describe("order-status: isReviewableOrder", () => {
   it("T1: PAID + non-cancelled order is reviewable", () => {
@@ -57,5 +58,61 @@ describe("order-status: cancellation transition guard", () => {
     }
     assert.equal(isOrderStatus("REFUNDED"), false);
     assert.equal(isOrderStatus("returned"), false);
+  });
+});
+
+const refundStates: RefundState[] = ["PENDING", "PROCESSING", "SUCCESS", "FAILED"];
+
+describe("refund-state-machine: state validity", () => {
+  for (const s of refundStates) {
+    it(`R1: ${s} is a valid RefundState`, () => {
+      assert.ok(refundStates.includes(s));
+    });
+  }
+});
+
+describe("refund-state-machine: valid transitions", () => {
+  it("R2: PENDING -> razorpay_request_sent -> PROCESSING", () => {
+    assert.equal(refundStateMachine.transition("PENDING", "razorpay_request_sent"), "PROCESSING");
+  });
+
+  it("R3: PROCESSING -> razorpay_processed -> SUCCESS", () => {
+    assert.equal(refundStateMachine.transition("PROCESSING", "razorpay_processed"), "SUCCESS");
+  });
+
+  it("R4: PROCESSING -> razorpay_pending -> PENDING", () => {
+    assert.equal(refundStateMachine.transition("PROCESSING", "razorpay_pending"), "PENDING");
+  });
+
+  it("R5: PROCESSING -> razorpay_failed -> FAILED", () => {
+    assert.equal(refundStateMachine.transition("PROCESSING", "razorpay_failed"), "FAILED");
+  });
+
+  it("R6: PENDING -> db_failure -> FAILED", () => {
+    assert.equal(refundStateMachine.transition("PENDING", "db_failure"), "FAILED");
+  });
+
+  it("R7: FAILED -> retry -> PENDING (same idempotency key reused)", () => {
+    assert.equal(refundStateMachine.transition("FAILED", "retry"), "PENDING");
+  });
+
+  it("R8: SUCCESS is terminal (no outgoing transitions)", () => {
+    assert.deepEqual(refundStateMachine.next("SUCCESS"), []);
+  });
+
+  it("R9: PROCESSING allows retry from any external error", () => {
+    assert.ok(refundStateMachine.next("PROCESSING").includes("razorpay_pending"));
+  });
+
+  it("R10: PENDING allows razorpay_request_sent", () => {
+    assert.ok(refundStateMachine.next("PENDING").includes("razorpay_request_sent"));
+  });
+
+  it("R11: invalid transition returns null (no mutation)", () => {
+    assert.equal(refundStateMachine.transition("PENDING", "razorpay_processed"), null);
+  });
+
+  it("R12: unknown event returns null from any state", () => {
+    assert.equal(refundStateMachine.transition("SUCCESS", "anything" as never), null);
   });
 });

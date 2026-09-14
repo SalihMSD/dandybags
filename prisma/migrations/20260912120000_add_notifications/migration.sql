@@ -1,5 +1,5 @@
 -- CreateEnum
-CREATE TYPE "NotificationType" AS ENUM ('NEW_ORDER');
+CREATE TYPE "NotificationType" AS ENUM ('NEW_ORDER', 'REFUND_SUCCEEDED', 'REFUND_FAILED');
 
 -- CreateTable
 CREATE TABLE "notifications" (

@@ -3,10 +3,23 @@ import { prisma } from "@/lib/db/prisma";
 import { publicOrder } from "@/lib/db/orders";
 import { canTransition, isOrderStatus, parseDeliveryField } from "@/lib/db/order-status";
 import { parseTotalLabel } from "@/lib/db/analytics";
+import { processOrderRefund } from "@/lib/payments/refund";
+import { createRefundSucceededNotification, createRefundFailedNotification } from "@/lib/db/notifications";
 
 const orderInclude = {
   items: { orderBy: { sku: "asc" as const } },
   user: { select: { id: true, fullName: true, email: true, phone: true } },
+  refund: {
+    select: {
+      id: true,
+      status: true,
+      razorpayRefundId: true,
+      amount: true,
+      failureReason: true,
+      completedAt: true,
+      idempotencyKey: true,
+    },
+  },
 } satisfies Prisma.OrderInclude;
 
 function publicAdminOrder(
@@ -20,6 +33,17 @@ function publicAdminOrder(
       email: order.user.email,
       phone: order.user.phone,
     },
+    refund: order.refund
+      ? {
+          id: order.refund.id,
+          status: order.refund.status,
+          razorpayRefundId: order.refund.razorpayRefundId,
+          amount: order.refund.amount,
+          failureReason: order.refund.failureReason,
+          completedAt: order.refund.completedAt ? order.refund.completedAt.toISOString() : null,
+          idempotencyKey: order.refund.idempotencyKey,
+        }
+      : null,
   };
 }
 
@@ -208,6 +232,80 @@ export async function updateAdminOrder(orderId: string, body: Record<string, unk
     include: orderInclude,
   });
   return { ok: true as const, order: publicAdminOrder(updated) };
+}
+
+export async function cancelAdminOrder(orderId: string) {
+  const existing = await prisma.order.findUnique({
+    where: { id: orderId },
+    include: {
+      ...orderInclude,
+      refund: { select: { id: true, status: true, idempotencyKey: true, razorpayRefundId: true } },
+    },
+  });
+  if (!existing) return { ok: false as const, error: "Order not found.", status: 404 as const };
+
+  if (existing.orderStatus !== "PLACED") {
+    return { ok: false as const, error: "This order can no longer be cancelled.", status: 400 as const };
+  }
+
+  const isPaid = existing.paymentStatus === "PAID";
+
+  const updatedOrder = await prisma.$transaction(async (tx) => {
+    const cancelled = await tx.order.updateMany({
+      where: { id: orderId, orderStatus: "PLACED" },
+      data: { orderStatus: "CANCELLED" },
+    });
+
+    if (cancelled.count === 0) {
+      return null;
+    }
+
+    if (isPaid) {
+      for (const item of existing.items) {
+        await tx.product.updateMany({
+          where: { sku: item.sku, stock: { not: null } },
+          data: { stock: { increment: item.qty } },
+        });
+      }
+    }
+
+    return tx.order.findUnique({
+      where: { id: orderId },
+      include: orderInclude,
+    });
+  });
+
+  if (!updatedOrder) {
+    return { ok: false as const, error: "This order can no longer be cancelled.", status: 400 as const };
+  }
+
+  const order = publicAdminOrder(updatedOrder);
+
+  let refundStatus: "not_applicable" | "SUCCESS" | "PROCESSING" | "PENDING" | "FAILED" | "already_refunded" | "error" = "not_applicable";
+  let refundError: string | undefined;
+
+  if (isPaid) {
+    if (existing.refund && existing.refund.status === "SUCCESS") {
+      refundStatus = "already_refunded";
+    } else {
+      const refundResult = await processOrderRefund(orderId);
+      if (refundResult.ok) {
+        if (refundResult.status === "SUCCESS") {
+          refundStatus = "SUCCESS";
+        } else if (refundResult.status === "ALREADY_REFUNDED") {
+          refundStatus = "already_refunded";
+        } else {
+          refundStatus = "PROCESSING";
+        }
+      } else {
+        refundStatus = "error";
+        refundError = refundResult.error;
+        void createRefundFailedNotification(orderId).catch(() => undefined);
+      }
+    }
+  }
+
+  return { ok: true as const, order, refundStatus, refundError };
 }
 
 export { parseTotalLabel };
