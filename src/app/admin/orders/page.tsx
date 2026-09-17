@@ -74,7 +74,7 @@ export default function AdminOrders() {
     setLoading(true);
     setError("");
     const params = buildParams();
-    const res = await fetch(`/api/admin/orders?${params.toString()}`, { credentials: "include" });
+    const res = await fetch(`/api/admin/orders?${params.toString()}`, { credentials: "include", cache: "no-store" });
     const data = (await res.json()) as PaginatedResponse | { error?: string };
     if (!res.ok) {
       setError((data as { error?: string }).error || "Failed to load orders.");

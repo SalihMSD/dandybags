@@ -20,13 +20,22 @@ const orderInclude = {
       idempotencyKey: true,
     },
   },
+  returnRequests: {
+    select: {
+      id: true,
+      status: true,
+    },
+  },
 } satisfies Prisma.OrderInclude;
 
 function publicAdminOrder(
   order: Prisma.OrderGetPayload<{ include: typeof orderInclude }>,
 ) {
   return {
-    ...publicOrder(order),
+    ...publicOrder({
+      ...order,
+      returnStatus: order.returnRequests[0]?.status ?? null,
+    }),
     customer: {
       id: order.user.id,
       fullName: order.user.fullName,

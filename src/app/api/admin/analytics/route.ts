@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth/session";
 import { AnalyticsRangeError, getAdminAnalytics } from "@/lib/db/analytics";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET(request: Request) {
   try {
@@ -17,7 +19,11 @@ export async function GET(request: Request) {
 
   try {
     const analytics = await getAdminAnalytics(start || end ? { start, end } : undefined);
-    return Response.json(analytics);
+    return Response.json(analytics, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
   } catch (e) {
     if (e instanceof AnalyticsRangeError) return jsonError(e.message, 400);
     return jsonError("Something went wrong. Please try again.", 500);

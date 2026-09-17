@@ -3,6 +3,8 @@ import { requireAdmin } from "@/lib/auth/session";
 import { getAdminOverview } from "@/lib/db/admin";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 export async function GET() {
   try {
@@ -13,7 +15,11 @@ export async function GET() {
 
   try {
     const overview = await getAdminOverview();
-    return Response.json(overview);
+    return Response.json(overview, {
+      headers: {
+        "Cache-Control": "no-store, max-age=0",
+      },
+    });
   } catch {
     return jsonError("Something went wrong. Please try again.", 500);
   }

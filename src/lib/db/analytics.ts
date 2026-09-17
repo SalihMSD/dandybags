@@ -19,8 +19,8 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
 
   const [paidOrders, allOrders, orderItems, categoryAgg, totalCustomers, newCustomersInPeriod, allTimeStats] = await Promise.all([
     prisma.order.findMany({
-      where: { paymentStatus: "PAID", createdAt: whereClause },
-      select: { id: true, totalLabel: true, createdAt: true, userId: true },
+      where: { paymentStatus: "PAID", orderStatus: { not: "CANCELLED" }, createdAt: whereClause },
+      select: { id: true, totalLabel: true, orderStatus: true, createdAt: true, userId: true },
       orderBy: { createdAt: "desc" },
     }),
     prisma.order.findMany({
@@ -53,7 +53,8 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
       FROM order_items oi
       JOIN "products" p ON p.sku = oi.sku
       JOIN "orders" o ON o.id = oi."orderId"
-      WHERE o."paymentStatus" = 'PAID'
+       WHERE o."paymentStatus" = 'PAID'
+        AND o."orderStatus" <> 'CANCELLED'
         AND o."createdAt" >= ${start}
         AND o."createdAt" < ${end}
       GROUP BY p.category
@@ -77,6 +78,7 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
         COUNT(*)::text AS total_orders
       FROM "orders" o
       WHERE o."paymentStatus" = 'PAID'
+        AND o."orderStatus" <> 'CANCELLED'
     `,
   ]);
 
@@ -91,7 +93,7 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
   for (const order of allOrders) {
     const amount = parseTotalLabel(order.totalLabel);
 
-    if (order.paymentStatus === "PAID") {
+    if (order.paymentStatus === "PAID" && order.orderStatus !== "CANCELLED") {
       paidRevenue += amount;
       periodOrders++;
       customerOrderMap.set(order.userId, (customerOrderMap.get(order.userId) || 0) + 1);
@@ -99,7 +101,7 @@ export async function getAdminAnalytics(range?: AnalyticsDateRange) {
 
     const dk = formatIndiaDate(order.createdAt);
     const existing = dailyMap.get(dk) ?? { revenue: 0, count: 0 };
-    existing.revenue += order.paymentStatus === "PAID" ? amount : 0;
+    existing.revenue += order.paymentStatus === "PAID" && order.orderStatus !== "CANCELLED" ? amount : 0;
     existing.count++;
     dailyMap.set(dk, existing);
 

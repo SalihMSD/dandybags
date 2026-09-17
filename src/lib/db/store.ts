@@ -58,6 +58,30 @@ export type WishlistRecord = {
 
 export type OrderItemRecord = CartItemRecord;
 
+export type ReturnItemRecord = {
+  sku: string;
+  qty: number;
+  condition: string | null;
+  reason: string | null;
+};
+
+export type ReturnRecord = {
+  id: string;
+  orderId: string;
+  userId: string;
+  items: ReturnItemRecord[];
+  resolution: "REFUND" | "REPLACE" | "EXCHANGE";
+  reason: string;
+  note: string | null;
+  status: "REQUESTED" | "APPROVED" | "REJECTED" | "COMPLETED" | "CANCELLED";
+  refundAmount: number | null;
+  exchangeVariantSku: string | null;
+  adminNote: string | null;
+  processedAt: string | null;
+  createdAt: string;
+  updatedAt: string;
+};
+
 export type OrderRecord = {
   id: string;
   userId: string;
@@ -91,6 +115,7 @@ export type Store = {
   carts: CartRecord[];
   wishlist: WishlistRecord[];
   orders: OrderRecord[];
+  returns: ReturnRecord[];
   tokens: TokenRecord[];
   sessions: SessionRecord[];
   outbox: { at: string; to: string; subject: string; text: string }[];
@@ -102,6 +127,7 @@ const empty = (): Store => ({
   carts: [],
   wishlist: [],
   orders: [],
+  returns: [],
   tokens: [],
   sessions: [],
   outbox: [],
@@ -140,6 +166,7 @@ function load(): Store {
     cache.carts ??= [];
     cache.wishlist ??= [];
     cache.orders ??= [];
+    cache.returns ??= [];
     cache.tokens ??= [];
     cache.sessions ??= [];
     cache.outbox ??= [];

@@ -41,6 +41,15 @@ enum NotificationType {
   NEW_ORDER
   REFUND_SUCCEEDED
   REFUND_FAILED
+  RETURN_REQUESTED
+  RETURN_APPROVED
+  RETURN_REJECTED
+}
+
+enum ReturnResolution {
+  REFUND
+  REPLACE
+  EXCHANGE
 }
 
 enum RefundStatus {
@@ -48,6 +57,14 @@ enum RefundStatus {
   PROCESSING
   SUCCESS
   FAILED
+}
+
+enum ReturnStatus {
+  REQUESTED
+  APPROVED
+  REJECTED
+  COMPLETED
+  CANCELLED
 }
 
 enum ReviewStatus {
@@ -102,6 +119,7 @@ model User {
   helpfulVotes ReviewHelpful[]
   coupons   Coupon[]
   shareRewards ShareReward[]
+  returnRequests ReturnRequest[]
 
   @@index([role])
   @@map("users")
@@ -186,6 +204,7 @@ model Order {
   coupon             Coupon?  @relation(fields: [couponId], references: [id], onDelete: SetNull)
   items         OrderItem[]
   refund          Refund?
+  returnRequests  ReturnRequest[]
   createdAt     DateTime      @default(now())
   updatedAt     DateTime      @updatedAt
 
@@ -220,11 +239,54 @@ model Refund {
    failureReason        String?
    requestedAt          DateTime     @default(now())
    completedAt          DateTime?
+   returnRequest        ReturnRequest?
 
    @@index([status])
    @@index([orderId])
    @@index([razorpayPaymentId])
    @@map("refunds")
+}
+
+model ReturnRequest {
+   id            String         @id
+   orderId       String
+   order         Order          @relation(fields: [orderId], references: [id], onDelete: Cascade)
+   userId        String
+   user          User           @relation(fields: [userId], references: [id], onDelete: Restrict)
+   status        ReturnStatus   @default(REQUESTED)
+   resolution    ReturnResolution
+   reason        String
+   note          String?
+   refundAmount  Int?           /// only set when resolution = REFUND, in paise
+   refund        Refund?        @relation(fields: [refundId], references: [id])
+   refundId      String?        @unique
+   exchangeVariantSku String?    /// target SKU for REPLACE/EXCHANGE
+   items         ReturnRequestItem[]
+   adminNote     String?
+   processedAt   DateTime?
+   createdAt     DateTime       @default(now())
+   updatedAt     DateTime       @updatedAt
+
+   @@index([orderId])
+   @@index([userId])
+   @@index([status])
+   @@index([resolution])
+   @@map("return_requests")
+}
+
+model ReturnRequestItem {
+   id            String @id
+   returnRequestId String
+   returnRequest ReturnRequest @relation(fields: [returnRequestId], references: [id], onDelete: Cascade)
+   sku           String
+   product       Product @relation(fields: [sku], references: [sku], onDelete: Restrict)
+   qty           Int
+   condition     String?   /// e.g. "unused", "damaged", "worn"
+   reason        String?
+
+   @@index([returnRequestId])
+   @@index([sku])
+   @@map("return_request_items")
 }
 
 model OrderItem {
@@ -310,6 +372,7 @@ model Product {
   cartItems      CartItem[]
   wishlist       Wishlist[]
   reviews        Review[]
+  returnRequestItems ReturnRequestItem[]
 
   @@index([category])
   @@index([featured])

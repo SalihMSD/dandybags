@@ -34,6 +34,7 @@ export type PublicOrder = {
   shippedAt: string | null;
   deliveredAt: string | null;
   createdAt: string;
+  returnStatus: "REQUESTED" | "APPROVED" | "REJECTED" | "COMPLETED" | "CANCELLED" | null;
 };
 
 export function publicOrder(order: {
@@ -55,6 +56,7 @@ export function publicOrder(order: {
   shippedAt?: Date | null;
   deliveredAt?: Date | null;
   createdAt: Date;
+  returnStatus?: "REQUESTED" | "APPROVED" | "REJECTED" | "COMPLETED" | "CANCELLED" | null;
   items: {
     sku: string;
     slug: string;
@@ -93,11 +95,18 @@ export function publicOrder(order: {
     shippedAt: order.shippedAt ? order.shippedAt.toISOString() : null,
     deliveredAt: order.deliveredAt ? order.deliveredAt.toISOString() : null,
     createdAt: order.createdAt.toISOString(),
+    returnStatus: order.returnStatus ?? null,
   };
 }
 
 const orderInclude = {
   items: { orderBy: { sku: "asc" as const } },
+  returnRequests: {
+    select: {
+      id: true,
+      status: true,
+    },
+  },
 };
 
 export async function listCustomerOrders(userId: string) {
@@ -106,7 +115,12 @@ export async function listCustomerOrders(userId: string) {
     include: orderInclude,
     orderBy: { createdAt: "desc" },
   });
-  return orders.map(publicOrder);
+  return orders.map((order) =>
+    publicOrder({
+      ...order,
+      returnStatus: order.returnRequests[0]?.status ?? null,
+    }),
+  );
 }
 
 export async function getCustomerOrder(userId: string, orderId: string) {
@@ -115,7 +129,10 @@ export async function getCustomerOrder(userId: string, orderId: string) {
     include: orderInclude,
   });
   if (!order || order.userId !== userId) return null;
-  return publicOrder(order);
+  return publicOrder({
+    ...order,
+    returnStatus: order.returnRequests[0]?.status ?? null,
+  });
 }
 
 export async function checkoutCustomerOrder(userId: string, addressId: string) {
@@ -183,7 +200,7 @@ export async function checkoutCustomerOrder(userId: string, addressId: string) {
       return created;
     });
 
-    return { ok: true as const, order: publicOrder(order) };
+    return { ok: true as const, order: publicOrder({ ...order, returnStatus: order.returnRequests?.[0]?.status ?? null }) };
   } catch {
     return { ok: false as const, error: "Something went wrong. Please try again.", status: 500 as const };
   }
@@ -233,7 +250,7 @@ export async function cancelCustomerOrder(userId: string, orderId: string) {
       return { ok: false as const, error: "This order can no longer be cancelled.", status: 400 as const };
     }
 
-    return { ok: true as const, order: publicOrder(updated) };
+    return { ok: true as const, order: publicOrder({ ...updated, returnStatus: updated.returnRequests?.[0]?.status ?? null }) };
   } catch {
     return { ok: false as const, error: "Something went wrong. Please try again.", status: 500 as const };
   }

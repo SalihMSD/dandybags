@@ -116,7 +116,7 @@ export default function AdminAnalytics() {
 
     setLoading(true);
     setError("");
-    fetch(`/api/admin/analytics?${params.toString()}`, { credentials: "include" })
+    fetch(`/api/admin/analytics?${params.toString()}`, { credentials: "include", cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) throw new Error("Failed to load analytics. Please try again.");
         return res.json() as Promise<AnalyticsResponse>;

@@ -25,6 +25,7 @@ type AdminOrder = {
   trackingNumber: string | null;
   shippedAt: string | null;
   deliveredAt: string | null;
+  returnStatus: string | null;
   customer: { fullName: string; email: string; phone: string };
   shippingAddress: {
     fullName: string;
@@ -59,7 +60,7 @@ export default function AdminOrderDetailPage() {
 
   useEffect(() => {
     if (!params.orderId) return;
-    void fetch(`/api/admin/orders/${params.orderId}`, { credentials: "include" })
+    void fetch(`/api/admin/orders/${params.orderId}`, { credentials: "include", cache: "no-store" })
       .then(async (res) => {
         if (!res.ok) {
           const data = await res.json();
@@ -253,6 +254,33 @@ export default function AdminOrderDetailPage() {
               {cancelPending ? "Retrying…" : "Retry Refund"}
             </button>
           )}
+        </div>
+      )}
+
+      {order.returnStatus && (
+        <div className="rounded border border-ink/10 bg-paper p-4">
+          <p className="font-serif text-lg">
+            Return Status:{" "}
+            <span className={
+              order.returnStatus === "COMPLETED"
+                ? "text-green-800"
+                : order.returnStatus === "REJECTED"
+                ? "text-red-800"
+                : order.returnStatus === "APPROVED"
+                ? "text-amber-800"
+                : order.returnStatus === "CANCELLED"
+                ? "text-ink-soft"
+                : "text-ink"
+            }>
+            {order.returnStatus}
+          </span>
+          </p>
+          <Link
+            href="/admin/returns"
+            className="mt-2 inline-block text-xs underline"
+          >
+            Manage Returns
+          </Link>
         </div>
       )}
 

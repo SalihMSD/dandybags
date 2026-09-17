@@ -39,7 +39,7 @@ export default function AdminDashboard() {
   const [error, setError] = useState("");
 
   useEffect(() => {
-    void fetch("/api/admin/overview", { credentials: "include" })
+    void fetch("/api/admin/overview", { credentials: "include", cache: "no-store" })
       .then(async (r) => {
         if (!r.ok) throw new Error("Failed to load overview");
         const d = (await r.json()) as {

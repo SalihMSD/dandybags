@@ -21,6 +21,7 @@ export async function getAdminOverview() {
       )::text AS total
       FROM "orders" o
       WHERE o."paymentStatus" = 'PAID'
+        AND o."orderStatus" <> 'CANCELLED'
     `,
   ]);
 

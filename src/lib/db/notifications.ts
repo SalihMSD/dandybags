@@ -16,6 +16,9 @@ const NOTIFICATION_MESSAGE_PREFIX = "#";
 export const ORDER_NOTIFICATION_TYPE: NotificationType = "NEW_ORDER";
 export const REFUND_SUCCEEDED_TYPE: NotificationType = "REFUND_SUCCEEDED";
 export const REFUND_FAILED_TYPE: NotificationType = "REFUND_FAILED";
+export const RETURN_REQUESTED_TYPE: NotificationType = "RETURN_REQUESTED";
+export const RETURN_APPROVED_TYPE: NotificationType = "RETURN_APPROVED";
+export const RETURN_REJECTED_TYPE: NotificationType = "RETURN_REJECTED";
 
 export function buildOrderNotificationFields(order: OrderForNotification) {
   const type: NotificationType = ORDER_NOTIFICATION_TYPE;
@@ -155,6 +158,87 @@ export async function createRefundFailedNotification(orderId: string): Promise<v
     });
   } catch (e) {
     console.error("[DANDY notif] failed to create refund-failed notification", {
+      orderId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+export async function createReturnRequestedNotification(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, totalLabel: true },
+    });
+    if (!order) {
+      console.error(`[DANDY notif] return-requested notification skipped: order not found (${orderId})`);
+      return;
+    }
+    await prisma.notification.create({
+      data: {
+        id: newId("not"),
+        type: RETURN_REQUESTED_TYPE,
+        orderId: order.id,
+        title: "Return Request",
+        message: `#${order.id} · ${order.totalLabel ?? ""}`,
+      },
+    });
+  } catch (e) {
+    console.error("[DANDY notif] failed to create return-requested notification", {
+      orderId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+export async function createReturnApprovedNotification(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, totalLabel: true },
+    });
+    if (!order) {
+      console.error(`[DANDY notif] return-approved notification skipped: order not found (${orderId})`);
+      return;
+    }
+    await prisma.notification.create({
+      data: {
+        id: newId("not"),
+        type: RETURN_APPROVED_TYPE,
+        orderId: order.id,
+        title: "Return Approved",
+        message: `#${order.id} · ${order.totalLabel ?? ""}`,
+      },
+    });
+  } catch (e) {
+    console.error("[DANDY notif] failed to create return-approved notification", {
+      orderId,
+      error: e instanceof Error ? e.message : String(e),
+    });
+  }
+}
+
+export async function createReturnRejectedNotification(orderId: string): Promise<void> {
+  try {
+    const order = await prisma.order.findUnique({
+      where: { id: orderId },
+      select: { id: true, totalLabel: true },
+    });
+    if (!order) {
+      console.error(`[DANDY notif] return-rejected notification skipped: order not found (${orderId})`);
+      return;
+    }
+    await prisma.notification.create({
+      data: {
+        id: newId("not"),
+        type: RETURN_REJECTED_TYPE,
+        orderId: order.id,
+        title: "Return Request Rejected",
+        message: `#${order.id} · ${order.totalLabel ?? ""}`,
+      },
+    });
+  } catch (e) {
+    console.error("[DANDY notif] failed to create return-rejected notification", {
       orderId,
       error: e instanceof Error ? e.message : String(e),
     });

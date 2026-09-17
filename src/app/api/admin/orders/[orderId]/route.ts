@@ -4,6 +4,8 @@ import { getAdminOrder, updateAdminOrder, cancelAdminOrder } from "@/lib/db/admi
 import { retryFailedRefund, getRefundState } from "@/lib/payments/refund";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 type Ctx = { params: Promise<{ orderId: string }> };
 
@@ -17,7 +19,9 @@ export async function GET(_request: Request, ctx: Ctx) {
   try {
     const order = await getAdminOrder(orderId);
     if (!order) return jsonError("Order not found.", 404);
-    return Response.json({ order });
+    return Response.json({ order }, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   } catch {
     return jsonError("Something went wrong. Please try again.", 500);
   }

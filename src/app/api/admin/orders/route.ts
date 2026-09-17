@@ -5,6 +5,8 @@ import { parseTotalLabel } from "@/lib/db/analytics";
 import { formatInr } from "@/lib/format";
 
 export const runtime = "nodejs";
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
 
 const CSV_HEADERS = ["Order ID", "Date", "Customer Name", "Email", "Phone", "Items", "Subtotal", "Total", "Payment Status", "Order Status", "Shipping Provider", "Tracking Number"];
 
@@ -70,7 +72,9 @@ export async function GET(request: Request) {
 
   if (!hasFilters) {
     const orders = await listAdminOrders();
-    return Response.json({ orders, total: orders.length });
+    return Response.json({ orders, total: orders.length }, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   }
 
   try {
@@ -83,7 +87,9 @@ export async function GET(request: Request) {
       page: Number(searchParams.get("page") || "1"),
       pageSize: Number(searchParams.get("pageSize") || "20"),
     });
-    return Response.json(result);
+    return Response.json(result, {
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    });
   } catch {
     return jsonError("Something went wrong. Please try again.", 500);
   }

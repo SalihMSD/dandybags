@@ -9,6 +9,7 @@ import AdminNotificationsBell from "@/components/admin/AdminNotificationsBell";
 const navItems = [
   { label: "Dashboard", href: "/admin", icon: "📊" },
   { label: "Orders", href: "/admin/orders", icon: "📦" },
+  { label: "Returns", href: "/admin/returns", icon: "↩" },
   { label: "Products", href: "/admin/products", icon: "👕" },
   { label: "Inventory", href: "/admin/inventory", icon: "📦" },
   { label: "Customers", href: "/admin/customers", icon: "👥" },
