@@ -15,6 +15,14 @@ const LOCAL_KEYS = [
   "RAZORPAY_WEBHOOK_SECRET",
 ];
 
+const SMTP_KEYS = [
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_USER",
+  "SMTP_PASS",
+  "SMTP_FROM",
+];
+
 function run(cmd, args, opts = {}) {
   return spawnSync(cmd, args, { shell: true, cwd: ROOT, encoding: "utf8", ...opts });
 }
@@ -99,6 +107,15 @@ function main() {
 
   for (const key of LOCAL_KEYS) {
     vercelEnvAdd(key, local[key]);
+  }
+
+  for (const key of SMTP_KEYS) {
+    if (local[key]) {
+      vercelEnvAdd(key, local[key]);
+      vercelEnvAddProduction(key, local[key]);
+    } else {
+      console.warn(`Optional ${key} not in .env.local — skipping.`);
+    }
   }
 
   // Placeholder APP_URL and NEXT_PUBLIC_SITE_URL; updated after first deploy URL is known.

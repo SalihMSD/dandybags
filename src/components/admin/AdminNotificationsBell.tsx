@@ -50,6 +50,7 @@ async function fetchNotifications(): Promise<NotificationsResponse | null> {
   try {
     const res = await fetch("/api/admin/notifications", {
       method: "GET",
+      credentials: "include",
       headers: { "x-nextjs-data": "true" },
       cache: "no-store",
     });
@@ -64,6 +65,7 @@ async function markRead(id: string): Promise<boolean> {
   try {
     const res = await fetch("/api/admin/notifications", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "markRead", id }),
     });
@@ -77,6 +79,7 @@ async function markAllRead(): Promise<boolean> {
   try {
     const res = await fetch("/api/admin/notifications", {
       method: "POST",
+      credentials: "include",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ action: "markAllRead" }),
     });

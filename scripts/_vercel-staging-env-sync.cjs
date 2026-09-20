@@ -13,9 +13,15 @@ const KEYS = [
   "ADMIN_EMAIL",
   "ADMIN_PASSWORD",
   "APP_URL",
+  "NEXT_PUBLIC_SITE_URL",
   "RAZORPAY_KEY_ID",
   "RAZORPAY_KEY_SECRET",
   "RAZORPAY_WEBHOOK_SECRET",
+  "SMTP_HOST",
+  "SMTP_PORT",
+  "SMTP_USER",
+  "SMTP_PASS",
+  "SMTP_FROM",
 ];
 
 const envPath = resolve(__dirname, "..", ".env.local");

@@ -58,13 +58,13 @@ BEGIN
     IF NOT EXISTS (SELECT 1 FROM pg_type WHERE typname = 'NotificationType') THEN
         CREATE TYPE "NotificationType" AS ENUM ('NEW_ORDER', 'REFUND_SUCCEEDED', 'REFUND_FAILED', 'RETURN_REQUESTED', 'RETURN_APPROVED', 'RETURN_REJECTED');
     ELSE
-        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE typname = 'NotificationType' AND enumlabel = 'RETURN_REQUESTED') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'NotificationType' AND e.enumlabel = 'RETURN_REQUESTED') THEN
             ALTER TYPE "NotificationType" ADD VALUE 'RETURN_REQUESTED';
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE typname = 'NotificationType' AND enumlabel = 'RETURN_REJECTED') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'NotificationType' AND e.enumlabel = 'RETURN_REJECTED') THEN
             ALTER TYPE "NotificationType" ADD VALUE 'RETURN_REJECTED';
         END IF;
-        IF NOT EXISTS (SELECT 1 FROM pg_enum WHERE typname = 'NotificationType' AND enumlabel = 'RETURN_APPROVED') THEN
+        IF NOT EXISTS (SELECT 1 FROM pg_enum e JOIN pg_type t ON t.oid = e.enumtypid WHERE t.typname = 'NotificationType' AND e.enumlabel = 'RETURN_APPROVED') THEN
             ALTER TYPE "NotificationType" ADD VALUE 'RETURN_APPROVED';
         END IF;
     END IF;

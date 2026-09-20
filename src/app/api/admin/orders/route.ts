@@ -71,10 +71,17 @@ export async function GET(request: Request) {
   const hasFilters = searchParams.has("search") || searchParams.has("paymentStatus") || searchParams.has("orderStatus") || searchParams.has("startDate") || searchParams.has("endDate") || searchParams.has("page");
 
   if (!hasFilters) {
-    const orders = await listAdminOrders();
-    return Response.json({ orders, total: orders.length }, {
-      headers: { "Cache-Control": "no-store, max-age=0" },
-    });
+    try {
+      const orders = await listAdminOrders();
+      return Response.json({ orders, total: orders.length }, {
+        headers: { "Cache-Control": "no-store, max-age=0" },
+      });
+    } catch (err) {
+      console.error("[DANDY api] failed to list admin orders", {
+        error: err instanceof Error ? err.message : String(err),
+      });
+      return jsonError("Unable to load orders at this time. Please try again later.", 500);
+    }
   }
 
   try {
@@ -90,7 +97,10 @@ export async function GET(request: Request) {
     return Response.json(result, {
       headers: { "Cache-Control": "no-store, max-age=0" },
     });
-  } catch {
+  } catch (err) {
+    console.error("[DANDY api] failed to filter admin orders", {
+      error: err instanceof Error ? err.message : String(err),
+    });
     return jsonError("Something went wrong. Please try again.", 500);
   }
 }
