@@ -1,5 +1,6 @@
 import { prisma } from "@/lib/db/prisma";
 import { newId } from "@/lib/db/store";
+import { formatInr } from "@/lib/format";
 
 export type Coupon = {
   id: string;
@@ -190,12 +191,4 @@ export async function listUserCoupons(userId: string) {
     createdAt: c.createdAt.toISOString(),
     updatedAt: c.updatedAt.toISOString(),
   }));
-}
-
-function formatInr(value: number) {
-  return new Intl.NumberFormat("en-IN", {
-    style: "currency",
-    currency: "INR",
-    maximumFractionDigits: 0,
-  }).format(value);
 }

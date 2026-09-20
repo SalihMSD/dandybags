@@ -109,6 +109,8 @@ export default function CheckoutPage() {
   const [couponError, setCouponError] = useState("");
   const [qtyUpdating, setQtyUpdating] = useState<string | null>(null);
   const [quoteError, setQuoteError] = useState("");
+  const [razorpayReady, setRazorpayReady] = useState(false);
+  const [scriptError, setScriptError] = useState(false);
 
   const isGuestMode = !user && !loading;
   const hasCart = cartLines.length > 0;
@@ -343,6 +345,9 @@ export default function CheckoutPage() {
             router.push(`/checkout/confirmation?orderId=${verified.orderId || data.orderId}`);
           })();
         },
+        onClose: () => {
+          setPending(false);
+        },
       });
       checkout.open();
     } catch {
@@ -376,7 +381,15 @@ export default function CheckoutPage() {
 
   return (
     <div className="mx-auto max-w-3xl px-4 py-10 sm:py-16 md:px-8">
-      <Script src="https://checkout.razorpay.com/v1/checkout.js" strategy="afterInteractive" />
+      <Script
+        src="https://checkout.razorpay.com/v1/checkout.js"
+        strategy="afterInteractive"
+        onLoad={() => setRazorpayReady(true)}
+        onError={() => {
+          setScriptError(true);
+          setError("Payment script failed to load. Please refresh the page and try again.");
+        }}
+      />
       <h1 className="font-serif text-4xl">Checkout</h1>
 
       {error ? <p className="mt-6 text-sm text-red-800">{error}</p> : null}
