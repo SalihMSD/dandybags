@@ -1,6 +1,7 @@
 import { describe, it, beforeEach, afterEach } from "node:test";
 import assert from "node:assert/strict";
 import { buildShiprocketPayload, type OrderSnapshot, type ProductCatalogEntry } from "@/lib/shipping/mapper";
+import { SPEC_PLACEHOLDER } from "@/lib/site";
 
 const VALID_ORDER: OrderSnapshot = {
   id: "DND-TEST01",
@@ -81,5 +82,41 @@ describe("shipment mapper — shipEmail validation", () => {
     if (!result.ok) {
       assert.ok(result.errors.some((e) => e.includes("shipEmail")), `Expected shipEmail error, got: ${result.errors.join("; ")}`);
     }
+  });
+});
+
+const PLACEHOLDER_PRODUCTS: ProductCatalogEntry[] = [
+  {
+    sku: "DND-PRS-003",
+    name: "Mini Purse",
+    category: "ladies-purses",
+    weight: SPEC_PLACEHOLDER,
+    length: SPEC_PLACEHOLDER,
+    width: SPEC_PLACEHOLDER,
+    height: SPEC_PLACEHOLDER,
+  },
+];
+
+describe("shipment mapper — measurement validation", () => {
+  it("M4: SPEC_PLACEHOLDER measurements are rejected with clear error", () => {
+    const placeholderOrder = {
+      ...VALID_ORDER,
+      id: "DND-PRS-003-ORDER",
+      items: [{ sku: "DND-PRS-003", name: "Mini Purse", qty: 1, unitPrice: { toString: () => "500" } }],
+    };
+    const result = buildShiprocketPayload(placeholderOrder, PLACEHOLDER_PRODUCTS, VALID_PICKUP);
+    assert.equal(result.ok, false);
+    if (!result.ok) {
+      assert.ok(
+        result.errors.some((e) => e.toLowerCase().includes("weight")),
+        `Expected weight measurement error, got: ${result.errors.join("; ")}`
+      );
+    }
+  });
+
+  it("M5: valid measurements pass validation", () => {
+    const order = { ...VALID_ORDER, id: "DND-PRS-003-ORDER" };
+    const result = buildShiprocketPayload(order, VALID_PRODUCTS, VALID_PICKUP);
+    assert.equal(result.ok, true);
   });
 });
