@@ -102,6 +102,14 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
     return { ok: false as const, error: "Please select a delivery address.", status: 400 as const };
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (!user) {
+    return { ok: false as const, error: "User not found.", status: 400 as const };
+  }
+
   await prisma.$executeRaw`SELECT pg_advisory_lock(hashtext(${userId}))`;
   try {
     const cart = await prisma.cart.findUnique({
@@ -185,6 +193,7 @@ export async function createCustomerPaymentOrder(userId: string, addressId: stri
           shipState: address.state,
           shipPincode: address.pincode,
           shipLandmark: address.landmark,
+          shipEmail: user.email,
           couponId,
           items: {
             create: cartLines.map((item) => ({

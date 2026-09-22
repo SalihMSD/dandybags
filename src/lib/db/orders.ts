@@ -143,6 +143,14 @@ export async function checkoutCustomerOrder(userId: string, addressId: string) {
     return { ok: false as const, error: "Please select a delivery address.", status: 400 as const };
   }
 
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: { email: true },
+  });
+  if (!user) {
+    return { ok: false as const, error: "User not found.", status: 400 as const };
+  }
+
   const cart = await prisma.cart.findUnique({
     where: { userId },
     include: { items: { include: { product: true } } },
@@ -181,6 +189,7 @@ export async function checkoutCustomerOrder(userId: string, addressId: string) {
           shipState: address.state,
           shipPincode: address.pincode,
           shipLandmark: address.landmark,
+          shipEmail: user.email,
           items: {
             create: cart.items.map((item) => ({
               id: newId("oit"),
