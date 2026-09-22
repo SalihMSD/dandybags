@@ -105,6 +105,8 @@ model Order {
   shipState         String
   shipPincode       String
   shipLandmark      String          @default("")
+  shipEmail         String?
+  shipCountry       String          @default("India")
   shippingProvider  String?
   trackingNumber    String?
   shippedAt         DateTime?
@@ -119,9 +121,72 @@ model Order {
   user              User            @relation(fields: [userId], references: [id])
   refund            Refund?
   returnRequests    ReturnRequest[]
+  shipment          Shipment?
 
   @@index([userId, createdAt])
   @@map("orders")
+}
+
+model Shipment {
+  id                 String          @id
+  orderId            String          @unique
+  provider           String          @default("SHIPROCKET")
+  providerOrderId    String?         @unique
+  providerShipmentId String?
+  awb                String?         @unique
+  courierName        String?
+  status             ShipmentStatus  @default(PENDING)
+  trackingUrl        String?
+  shippingCost       Decimal?        @db.Decimal(10, 2)
+  labelUrl           String?
+  pickupScheduledAt  DateTime?
+  shippedAt          DateTime?
+  deliveredAt        DateTime?
+  cancelledAt        DateTime?
+  failureReason      String?
+  idempotencyKey     String          @unique
+  createdAt          DateTime        @default(now())
+  updatedAt          DateTime        @updatedAt
+  order              Order           @relation(fields: [orderId], references: [id], onDelete: Restrict)
+  events             ShipmentEvent[]
+
+  @@index([status])
+  @@index([providerOrderId])
+  @@index([awb])
+  @@map("shipments")
+}
+
+model ShipmentEvent {
+  id         String         @id
+  shipmentId String
+  status     ShipmentStatus
+  rawStatus  String
+  activity   String?
+  location   String?
+  note       String?
+  occurredAt DateTime
+  createdAt  DateTime       @default(now())
+  shipment   Shipment       @relation(fields: [shipmentId], references: [id], onDelete: Cascade)
+
+  @@index([shipmentId, occurredAt])
+  @@index([status, occurredAt])
+  @@map("shipment_events")
+}
+
+enum ShipmentStatus {
+  PENDING
+  CREATED
+  AWB_ASSIGNED
+  PICKUP_SCHEDULED
+  PICKED_UP
+  IN_TRANSIT
+  OUT_FOR_DELIVERY
+  DELIVERED
+  NDR
+  RTO
+  CANCELLED
+  FAILED
+  RECONCILIATION_REQUIRED
 }
 
 model Notification {

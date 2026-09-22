@@ -15,6 +15,39 @@ type AdminOrderItem = {
   unitPrice: number | null;
 };
 
+type ShipmentEvent = {
+  id: string;
+  status: string;
+  rawStatus: string;
+  activity: string | null;
+  location: string | null;
+  note: string | null;
+  occurredAt: string;
+};
+
+type AdminShipment = {
+  id: string;
+  status: string;
+  provider: string;
+  providerOrderId: string | null;
+  providerShipmentId: string | null;
+  awb: string | null;
+  courierName: string | null;
+  trackingUrl: string | null;
+  labelUrl: string | null;
+  shippingCost: number | null;
+  pickupScheduledAt: string | null;
+  shippedAt: string | null;
+  deliveredAt: string | null;
+  cancelledAt: string | null;
+  failureReason: string | null;
+  createdAt: string;
+  updatedAt: string;
+  canRetry: boolean;
+  canTrack: boolean;
+  events: ShipmentEvent[];
+};
+
 type AdminOrder = {
   id: string;
   createdAt: string;
@@ -51,7 +84,9 @@ type AdminOrder = {
 export default function AdminOrderDetailPage() {
   const params = useParams<{ orderId: string }>();
   const [order, setOrder] = useState<AdminOrder | null>(null);
+  const [shipment, setShipment] = useState<AdminShipment | null>(null);
   const [loading, setLoading] = useState(true);
+  const [loadingShipment, setLoadingShipment] = useState(false);
   const [error, setError] = useState("");
   const [message, setMessage] = useState("");
   const [pending, setPending] = useState(false);
@@ -73,6 +108,18 @@ export default function AdminOrderDetailPage() {
       .catch(() => setError("Something went wrong. Please try again."))
       .finally(() => setLoading(false));
   }, [params.orderId]);
+
+  useEffect(() => {
+    if (!params.orderId || !order) return;
+    void fetch(`/api/admin/shipments/${params.orderId}`, { credentials: "include", cache: "no-store" })
+      .then(async (res) => {
+        if (res.ok) {
+          const data = (await res.json()) as { shipment?: AdminShipment };
+          setShipment(data.shipment || null);
+        }
+      })
+      .catch(() => setShipment(null));
+  }, [params.orderId, order]);
 
   async function onSubmit(e: React.FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -180,9 +227,47 @@ export default function AdminOrderDetailPage() {
     }
   }
 
+  async function handleCreateShipment() {
+    if (!order) return;
+    setLoadingShipment(true);
+    setMessage("");
+    const res = await fetch(`/api/admin/shipments/${order.id}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = (await res.json()) as { error?: string; shipment?: AdminShipment; message?: string };
+    if (!res.ok) {
+      setMessage(data.error || "Failed to create shipment.");
+    } else {
+      setShipment(data.shipment || null);
+      setMessage(data.message || "Shipment created.");
+    }
+    setLoadingShipment(false);
+  }
+
+  async function handleRetryShipment() {
+    if (!order) return;
+    setLoadingShipment(true);
+    setMessage("");
+    const res = await fetch(`/api/admin/shipments/${order.id}`, {
+      method: "POST",
+      credentials: "include",
+      headers: { "Content-Type": "application/json" },
+    });
+    const data = (await res.json()) as { error?: string; shipment?: AdminShipment; message?: string };
+    if (!res.ok) {
+      setMessage(data.error || "Failed to retry shipment.");
+    } else {
+      setShipment(data.shipment || null);
+      setMessage(data.message || "Shipment retried.");
+    }
+    setLoadingShipment(false);
+  }
+
   if (loading) return <p className="text-sm text-ink-soft">Loading order…</p>;
   if (error) return <p className="text-sm text-red-800">{error}</p>;
-  if (!order) return <p className="text-sm text-ink-soft">Order not found.</p>;
+  if (!order) return <p className="text-sm text-ink-soft">Order not found.</p>;;
 
   const next = isOrderStatus(order.orderStatus) ? allowedNextStatuses(order.orderStatus) : [];
 
@@ -461,6 +546,130 @@ export default function AdminOrderDetailPage() {
             {pending ? "Saving…" : "Save"}
           </button>
         </form>
+      </section>
+
+      <section>
+        <h2 className="font-serif text-xl">Shiprocket Shipment</h2>
+
+        {loadingShipment ? (
+          <p className="mt-4 text-sm text-ink-soft">Loading shipment…</p>
+        ) : shipment ? (
+          <div className="mt-4 space-y-4">
+            <div className="flex items-center gap-4">
+              <span className="rounded bg-paper border border-ink/10 px-3 py-1 text-xs font-medium">
+                Status: {shipment.status}
+              </span>
+              {shipment.provider ? (
+                <span className="text-xs text-ink-soft">Provider: {shipment.provider}</span>
+              ) : null}
+              {shipment.failureReason ? (
+                <span className="text-xs text-red-800">Failure: {shipment.failureReason}</span>
+              ) : null}
+            </div>
+
+            <div className="grid gap-2 text-sm">
+              {shipment.providerOrderId ? (
+                <div>
+                  <span className="text-ink-soft">Shiprocket Order ID: </span>
+                  <span className="font-mono">{shipment.providerOrderId}</span>
+                </div>
+              ) : null}
+              {shipment.awb ? (
+                <div>
+                  <span className="text-ink-soft">AWB: </span>
+                  <span className="font-mono">{shipment.awb}</span>
+                  {shipment.courierName ? (
+                    <span className="text-ink-soft"> ({shipment.courierName})</span>
+                  ) : null}
+                </div>
+              ) : null}
+              {shipment.trackingUrl ? (
+                <div>
+                  <span className="text-ink-soft">Track: </span>
+                  <a href={shipment.trackingUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                    {shipment.trackingUrl}
+                  </a>
+                </div>
+              ) : null}
+              {shipment.labelUrl ? (
+                <div>
+                  <span className="text-ink-soft">Label: </span>
+                  <a href={shipment.labelUrl} target="_blank" rel="noopener noreferrer" className="underline">
+                    View Label
+                  </a>
+                </div>
+              ) : null}
+              {shipment.shippingCost != null ? (
+                <div>
+                  <span className="text-ink-soft">Shipping Cost: </span>
+                  <span>₹{shipment.shippingCost}</span>
+                </div>
+              ) : null}
+              {shipment.pickupScheduledAt ? (
+                <div>
+                  <span className="text-ink-soft">Pickup Scheduled: </span>
+                  <span>{new Date(shipment.pickupScheduledAt).toLocaleString("en-IN")}</span>
+                </div>
+              ) : null}
+              {shipment.deliveredAt ? (
+                <div>
+                  <span className="text-ink-soft">Delivered: </span>
+                  <span>{new Date(shipment.deliveredAt).toLocaleString("en-IN")}</span>
+                </div>
+              ) : null}
+            </div>
+
+            {shipment.events && shipment.events.length > 0 ? (
+              <div>
+                <h3 className="text-sm font-medium text-ink-soft">Events</h3>
+                <div className="mt-2 space-y-1">
+                  {shipment.events.map((event) => (
+                    <div key={event.id} className="flex gap-3 text-xs">
+                      <span className="w-32 flex-none text-ink-soft">
+                        {new Date(event.occurredAt).toLocaleString("en-IN")}
+                      </span>
+                      <span className="font-medium">{event.status}</span>
+                      {event.activity ? <span className="text-ink-soft">{event.activity}</span> : null}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            {shipment.canRetry ? (
+              <div className="mt-4">
+                <button
+                  type="button"
+                  onClick={() => void handleRetryShipment()}
+                  disabled={loadingShipment}
+                  className="h-9 bg-camel px-4 text-[10px] tracking-[0.16em] uppercase text-ink disabled:opacity-60"
+                >
+                  {loadingShipment ? "Retrying…" : "Retry Shipment"}
+                </button>
+              </div>
+            ) : null}
+          </div>
+        ) : order.paymentStatus === "PAID" && order.orderStatus !== "CANCELLED" ? (
+          <div className="mt-4">
+            <button
+              type="button"
+              onClick={() => void handleCreateShipment()}
+              disabled={loadingShipment}
+              className="h-10 bg-ink px-5 text-[11px] tracking-[0.16em] uppercase text-paper disabled:opacity-60"
+            >
+              {loadingShipment ? "Creating…" : "Create Shipment"}
+            </button>
+            <p className="mt-2 text-xs text-ink-soft">
+              Creates a Shiprocket shipment for this order. Requires Shiprocket credentials to be configured.
+            </p>
+          </div>
+        ) : (
+          <p className="mt-4 text-sm text-ink-soft">
+            {order.paymentStatus !== "PAID"
+              ? "Payment must be completed before a shipment can be created."
+              : "Order is cancelled — no shipment can be created."}
+          </p>
+        )}
       </section>
 
       {showCancelConfirm && (
