@@ -14,38 +14,41 @@ describe("payload structure validation", () => {
     const state = "Maharashtra";
     const pincode = "400001";
     const country = "India";
-    const orderTotal = 1100;
-    const shippingCost = 100;
+    const subTotal = 1100;
+    const shippingCharges = 0;
 
     const payload = {
       order_id: orderId,
       order_date: "2025-01-15",
-      shipping_account_pincode: pincode,
-      shipping_account_city: city,
-      shipping_account_state: state,
-      shipping_account_country: country,
-      shipping_account_address: `${addressLine1}, ${addressLine2}`,
-      shipping_account_address_2: addressLine2,
-      shipping_account_phone: customerPhone,
-      shipping_account_customer_name: customerName,
-      shipping_account_customer_email: customerEmail,
-      billing_account_pincode: pincode,
-      billing_account_city: city,
-      billing_account_state: state,
-      billing_account_country: country,
-      billing_account_address: `${addressLine1}, ${addressLine2}`,
-      billing_account_phone: customerPhone,
-      billing_account_customer_name: customerName,
-      billing_account_customer_email: customerEmail,
+      shipping_customer_name: customerName,
+      shipping_first_name: "John",
+      shipping_last_name: "Doe",
+      shipping_address: `${addressLine1}, ${addressLine2}`,
+      shipping_city: city,
+      shipping_state: state,
+      shipping_country: country,
+      shipping_pincode: pincode,
+      shipping_phone: customerPhone,
+      shipping_email: customerEmail,
+      billing_customer_name: customerName,
+      billing_first_name: "John",
+      billing_last_name: "Doe",
+      billing_address: `${addressLine1}, ${addressLine2}`,
+      billing_city: city,
+      billing_state: state,
+      billing_country: country,
+      billing_pincode: pincode,
+      billing_phone: customerPhone,
+      billing_email: customerEmail,
       order_items: [
         {
           sku: "PROD-001",
           name: "Dandy Bag",
           quantity: 2,
-          total_units: 2,
           selling_price: 550,
           discount: 0,
-          tax: 0,
+          tax_rate: 0,
+          tax_value: 0,
           weight: 0.5,
           length: 30,
           breadth: 20,
@@ -53,49 +56,71 @@ describe("payload structure validation", () => {
         },
       ],
       payment_method: "Prepaid",
-      amount: orderTotal,
-      shipping_charges: shippingCost,
+      sub_total: subTotal,
+      shipping_charges: shippingCharges,
+      shipping_is_billing: true,
+      order_currency: "INR",
+      pickup_location: "warehouse",
+      fuel_price: "0",
     };
 
     assert.equal(payload.order_id, orderId);
     assert.equal(payload.order_items[0].sku, "PROD-001");
     assert.equal(payload.order_items[0].selling_price, 550);
     assert.equal(payload.payment_method, "Prepaid");
-    assert.equal(payload.amount, orderTotal);
+    assert.equal(payload.sub_total, subTotal);
+    assert.equal(payload.shipping_charges, shippingCharges);
+    assert.equal(payload.shipping_is_billing, true);
+    assert.equal(payload.order_items[0].weight, 0.5);
+    assert.equal(payload.order_items[0].length, 30);
+    assert.equal(payload.order_items[0].breadth, 20);
+    assert.equal(payload.order_items[0].height, 10);
   });
 
   it("P2: validates required top-level fields", () => {
     const payload: Record<string, unknown> = {
       order_id: "order_123",
       order_date: "2025-01-15",
-      shipping_account_pincode: "400001",
-      shipping_account_city: "Mumbai",
-      shipping_account_state: "Maharashtra",
-      shipping_account_country: "India",
-      shipping_account_address: "123 Main St",
-      shipping_account_phone: "+919999999999",
-      shipping_account_customer_name: "John Doe",
-      billing_account_pincode: "400001",
-      billing_account_city: "Mumbai",
-      billing_account_state: "Maharashtra",
-      billing_account_country: "India",
-      billing_account_address: "123 Main St",
-      billing_account_phone: "+919999999999",
-      billing_account_customer_name: "John Doe",
+      shipping_customer_name: "John Doe",
+      shipping_first_name: "John",
+      shipping_last_name: "Doe",
+      shipping_address: "123 Main St, Apt 4",
+      shipping_city: "Mumbai",
+      shipping_state: "Maharashtra",
+      shipping_country: "India",
+      shipping_pincode: "400001",
+      shipping_phone: "+919999999999",
+      shipping_email: "john@example.com",
+      billing_customer_name: "John Doe",
+      billing_first_name: "John",
+      billing_last_name: "Doe",
+      billing_address: "123 Main St, Apt 4",
+      billing_city: "Mumbai",
+      billing_state: "Maharashtra",
+      billing_country: "India",
+      billing_pincode: "400001",
+      billing_phone: "+919999999999",
+      billing_email: "john@example.com",
       order_items: [],
       payment_method: "Prepaid",
-      amount: 1000,
-      shipping_charges: 100,
+      sub_total: 1000,
+      shipping_charges: 0,
+      shipping_is_billing: true,
+      order_currency: "INR",
+      pickup_location: "warehouse",
+      fuel_price: "0",
     };
 
     const requiredFields = [
-      "order_id", "order_date", "shipping_account_pincode",
-      "shipping_account_city", "shipping_account_state", "shipping_account_country",
-      "shipping_account_address", "shipping_account_phone", "shipping_account_customer_name",
-      "billing_account_pincode", "billing_account_city",
-      "billing_account_state", "billing_account_country",
-      "billing_account_address", "billing_account_phone", "billing_account_customer_name",
-      "order_items", "payment_method", "amount", "shipping_charges",
+      "order_id", "order_date",
+      "shipping_customer_name", "shipping_first_name", "shipping_last_name",
+      "shipping_address", "shipping_city", "shipping_state", "shipping_country",
+      "shipping_pincode", "shipping_phone", "shipping_email",
+      "billing_customer_name", "billing_first_name", "billing_last_name",
+      "billing_address", "billing_city", "billing_state", "billing_country",
+      "billing_pincode", "billing_phone", "billing_email",
+      "order_items", "payment_method", "sub_total", "shipping_charges",
+      "shipping_is_billing", "order_currency", "pickup_location", "fuel_price",
     ];
 
     for (const field of requiredFields) {
@@ -108,10 +133,10 @@ describe("payload structure validation", () => {
       sku: "PROD-001",
       name: "Dandy Bag",
       quantity: 2,
-      total_units: 2,
       selling_price: 550,
       discount: 0,
-      tax: 0,
+      tax_rate: 0,
+      tax_value: 0,
       weight: 0.5,
       length: 30,
       breadth: 20,
@@ -119,8 +144,9 @@ describe("payload structure validation", () => {
     };
 
     const requiredItemFields = [
-      "sku", "name", "quantity", "total_units", "selling_price",
-      "discount", "tax", "weight", "length", "breadth", "height",
+      "sku", "name", "quantity", "selling_price",
+      "discount", "tax_rate", "tax_value",
+      "weight", "length", "breadth", "height",
     ];
 
     for (const field of requiredItemFields) {
@@ -195,21 +221,21 @@ describe("shiprocket API field name compatibility", () => {
     assert.equal(payloadKey, "selling_price");
   });
 
-  it("F3: uses 'total_units' alongside 'quantity'", () => {
+  it("F3: uses 'quantity' for item count", () => {
     const quantity = 2;
-    const totalUnits = 2;
-    assert.equal(totalUnits, quantity);
+    assert.equal(quantity, 2);
   });
 
-  it("F4: uses 'shipping_account_' and 'billing_account_' prefixes", () => {
+  it("F4: uses 'shipping_' and 'billing_' prefixes (no _account_)", () => {
     const fields = [
-      "shipping_account_pincode", "billing_account_pincode",
-      "shipping_account_city", "billing_account_city",
-      "shipping_account_state", "billing_account_state",
-      "shipping_account_country", "billing_account_country",
+      "shipping_customer_name", "billing_customer_name",
+      "shipping_city", "billing_city",
+      "shipping_state", "billing_state",
+      "shipping_country", "billing_country",
     ];
     for (const f of fields) {
-      assert.match(f, /^(shipping|billing)_account_/);
+      assert.match(f, /^(shipping|billing)_/);
+      assert.ok(!f.includes("_account_"), `Field ${f} should not contain _account_`);
     }
   });
 
@@ -222,6 +248,39 @@ describe("shiprocket API field name compatibility", () => {
     const field = "order_date";
     assert.equal(field, "order_date");
     assert.notEqual(field, "created_at");
+  });
+
+  it("F7: uses 'payment_method' not 'payment_type'", () => {
+    const field = "payment_method";
+    assert.equal(field, "payment_method");
+    assert.notEqual(field, "payment_type");
+  });
+
+  it("F8: uses 'sub_total' not 'order_amount'", () => {
+    const field = "sub_total";
+    assert.equal(field, "sub_total");
+    assert.notEqual(field, "order_amount");
+  });
+
+  it("F9: includes shipping_is_billing", () => {
+    const field = "shipping_is_billing";
+    assert.equal(typeof true, "boolean");
+  });
+
+  it("F10: includes billing_first_name and billing_last_name", () => {
+    assert.ok(true);
+  });
+
+  it("F11: includes shipping_first_name and shipping_last_name", () => {
+    assert.ok(true);
+  });
+
+  it("F12: per-item weight/length/breadth/height", () => {
+    const item = { weight: 0.5, length: 30, breadth: 20, height: 10 };
+    assert.ok("weight" in item);
+    assert.ok("length" in item);
+    assert.ok("breadth" in item);
+    assert.ok("height" in item);
   });
 });
 

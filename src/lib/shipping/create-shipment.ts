@@ -153,7 +153,21 @@ async function releaseShipmentLock(db: PrismaClient, orderId: string): Promise<v
   try {
     await db.$executeRaw`SELECT pg_advisory_unlock(hashtext(${`shipment:${orderId}`}))`;
   } catch {
-    // Best-effort unlock
+    // Best-effort unlock — never throw from finally
+  }
+}
+
+export async function createShipmentForOrder(
+  orderId: string,
+  deps: ShipmentDeps = defaultDeps,
+): Promise<CreateShipmentResult> {
+  const { prisma: db } = deps;
+
+  await acquireShipmentLock(db, orderId);
+  try {
+    return await createShipmentForOrderInner(orderId, deps);
+  } finally {
+    await releaseShipmentLock(db, orderId);
   }
 }
 
@@ -242,20 +256,6 @@ export async function fetchProductCatalog(
     result[p.sku] = p;
   }
   return result;
-}
-
-export async function createShipmentForOrder(
-  orderId: string,
-  deps: ShipmentDeps = defaultDeps,
-): Promise<CreateShipmentResult> {
-  const { prisma: db } = deps;
-
-  await acquireShipmentLock(db, orderId);
-  try {
-    return await createShipmentForOrderInner(orderId, deps);
-  } finally {
-    await releaseShipmentLock(db, orderId);
-  }
 }
 
 async function createShipmentForOrderInner(

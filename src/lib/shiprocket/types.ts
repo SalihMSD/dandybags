@@ -28,9 +28,6 @@ export interface ShiprocketOrderItem {
   tax_rate: number;
   tax_value: number;
   discount: number;
-}
-
-export interface ShiprocketPackage {
   weight: number;
   length: number;
   breadth: number;
@@ -41,6 +38,8 @@ export interface ShiprocketCreateOrderPayload {
   order_id: string;
   order_date: string;
   shipping_customer_name: string;
+  shipping_first_name: string;
+  shipping_last_name: string;
   shipping_address: string;
   shipping_city: string;
   shipping_state: string;
@@ -50,6 +49,8 @@ export interface ShiprocketCreateOrderPayload {
   shipping_email?: string;
   shipping_landmark?: string;
   billing_customer_name: string;
+  billing_first_name: string;
+  billing_last_name: string;
   billing_address: string;
   billing_city: string;
   billing_state: string;
@@ -59,13 +60,13 @@ export interface ShiprocketCreateOrderPayload {
   billing_email?: string;
   billing_landmark?: string;
   order_items: ShiprocketOrderItem[];
-  payment_type: string;
-  order_amount: number;
+  payment_method: string;
+  sub_total: number;
+  shipping_charges: number;
+  shipping_is_billing: boolean;
   order_currency: string;
-  weight: ShiprocketPackage;
   pickup_location: string;
   fuel_price: string;
-  extra_params?: string;
   channel_id?: string;
 }
 
