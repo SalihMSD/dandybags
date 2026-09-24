@@ -191,6 +191,10 @@ export function buildShiprocketPayload(
     order_currency: "INR",
     pickup_location: pickupLocation,
     fuel_price: "0",
+    weight: totalWeightKg,
+    length: Math.max(...orderItems.map((i) => i.length)),
+    breadth: Math.max(...orderItems.map((i) => i.breadth)),
+    height: Math.max(...orderItems.map((i) => i.height)),
   };
 
   const idempotencyKey = `shp_${newId("shp")}`;

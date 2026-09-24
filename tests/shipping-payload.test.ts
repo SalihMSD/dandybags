@@ -62,6 +62,10 @@ describe("payload structure validation", () => {
       order_currency: "INR",
       pickup_location: "warehouse",
       fuel_price: "0",
+      weight: 1.0,
+      length: 30,
+      breadth: 20,
+      height: 10,
     };
 
     assert.equal(payload.order_id, orderId);
@@ -75,6 +79,10 @@ describe("payload structure validation", () => {
     assert.equal(payload.order_items[0].length, 30);
     assert.equal(payload.order_items[0].breadth, 20);
     assert.equal(payload.order_items[0].height, 10);
+    assert.equal(payload.weight, 1.0);
+    assert.equal(payload.length, 30);
+    assert.equal(payload.breadth, 20);
+    assert.equal(payload.height, 10);
   });
 
   it("P2: validates required top-level fields", () => {
@@ -109,6 +117,10 @@ describe("payload structure validation", () => {
       order_currency: "INR",
       pickup_location: "warehouse",
       fuel_price: "0",
+      weight: 1.0,
+      length: 30,
+      breadth: 20,
+      height: 10,
     };
 
     const requiredFields = [
@@ -121,6 +133,7 @@ describe("payload structure validation", () => {
       "billing_pincode", "billing_phone", "billing_email",
       "order_items", "payment_method", "sub_total", "shipping_charges",
       "shipping_is_billing", "order_currency", "pickup_location", "fuel_price",
+      "weight", "length", "breadth", "height",
     ];
 
     for (const field of requiredFields) {

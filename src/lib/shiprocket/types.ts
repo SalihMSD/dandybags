@@ -67,6 +67,10 @@ export interface ShiprocketCreateOrderPayload {
   order_currency: string;
   pickup_location: string;
   fuel_price: string;
+  weight?: number;
+  length?: number;
+  breadth?: number;
+  height?: number;
   channel_id?: string;
 }
 
