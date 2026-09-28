@@ -79,7 +79,7 @@ export interface ShiprocketCreateOrderResponse {
   order_date: string;
   order_status: string;
   message: string;
-  shipment_id: string;
+  shipment_id: string | number;
   awb_code: string | null;
 }
 
@@ -149,6 +149,8 @@ export interface ShiprocketServiceabilityResponse {
 
 export interface ShiprocketOrderLookupResult {
   providerOrderId: string;
+  providerShipmentId: string;
+  orderId: string | null;
   awb: string | null;
   courierName: string | null;
   status: string | null;
