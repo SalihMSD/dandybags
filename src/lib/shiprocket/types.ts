@@ -157,12 +157,21 @@ export interface ShiprocketOrderLookupResult {
 }
 
 export interface ShiprocketShipmentDetail {
+  id?: string | number;
   shipment_id?: string | number;
   order_id?: number;
   channel_order_id?: string;
+  channel_id?: string;
   status?: string;
+  awb?: string | null;
   awb_code?: string | null;
+  courier?: string | null;
   courier_name?: string | null;
+  courier_company?: string | null;
+}
+
+export interface ShiprocketShipmentDetailResponse {
+  data?: ShiprocketShipmentDetail | null;
 }
 
 export interface ShiprocketOrderListResponse {

@@ -18,15 +18,16 @@ export interface LookupResponse {
 }
 
 export function buildLookupResponse(data: ShiprocketShipmentDetail): LookupResponse {
+  const rawShipmentId = data?.id ?? data?.shipment_id ?? null;
   const shipmentId =
-    typeof data?.shipment_id === "number" ? String(data.shipment_id) : data?.shipment_id ?? null;
+    typeof rawShipmentId === "number" ? String(rawShipmentId) : rawShipmentId ?? null;
   return {
     shipment_id: shipmentId ?? "",
     shiprocket_order_id: data?.order_id ? String(data.order_id) : null,
     channel_order_id: data?.channel_order_id ?? null,
     status: data?.status ?? null,
-    awb_code: data?.awb_code ?? null,
-    courier_name: data?.courier_name ?? null,
+    awb_code: data?.awb ?? data?.awb_code ?? null,
+    courier_name: data?.courier ?? data?.courier_name ?? data?.courier_company ?? null,
   };
 }
 

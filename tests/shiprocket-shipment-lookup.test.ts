@@ -1,4 +1,4 @@
-import { describe, it, mock, before } from "node:test";
+import { describe, it, mock } from "node:test";
 import assert from "node:assert/strict";
 
 import {
@@ -13,36 +13,29 @@ import {
   type LookupDeps,
 } from "@/lib/shiprocket/diagnostic";
 
-type Ctx = { params: Promise<{ shipmentId: string }> };
-
 function makeDeps(overrides: Partial<LookupDeps> = {}): LookupDeps {
   return {
     requireAdmin: async () => ({ id: "admin1", role: "ADMIN" }),
     originOk: () => true,
     fetchShipmentById: async () => ({
-      shipment_id: 16047755353,
+      id: 16047755353,
       order_id: 7890123,
-      channel_order_id: "DND-DBD87242",
       status: "ORDER_CREATED",
-      awb_code: "AWB123456789",
-      courier_name: "DTDC",
+      awb: "AWB123456789",
+      courier: "DTDC",
     }),
     ...overrides,
   };
 }
 
-function makeCtx(shipmentId = "16047755353"): Ctx {
-  return { params: Promise.resolve({ shipmentId }) };
-}
-
-const FULL_SHIPROCKET_RESPONSE: ShiprocketShipmentDetail & Record<string, unknown> =
+const SHIPROCKET_PII_RESPONSE: ShiprocketShipmentDetail & Record<string, unknown> =
   {
-    shipment_id: 16047755353,
+    id: 16047755353,
     order_id: 7890123,
     channel_order_id: "DND-DBD87242",
     status: "ORDER_CREATED",
-    awb_code: "AWB123456789",
-    courier_name: "DTDC",
+    awb: "AWB123456789",
+    courier: "DTDC",
     shipping_customer_name: "John Doe",
     shipping_phone: "9999999999",
     shipping_email: "john@example.com",
@@ -53,19 +46,18 @@ const FULL_SHIPROCKET_RESPONSE: ShiprocketShipmentDetail & Record<string, unknow
   };
 
 describe("shiprocket shipment diagnostic — buildLookupResponse", () => {
-  it("D6: correctly maps all fields from Shiprocket response", () => {
+  it("D6: correctly maps fields using Shiprocket endpoint field names", () => {
     const result = buildLookupResponse({
-      shipment_id: 16047755353,
+      id: 16047755353,
       order_id: 7890123,
-      channel_order_id: "DND-DBD87242",
       status: "DISPATCHED",
-      awb_code: "12345678901",
-      courier_name: "Bluedart",
+      awb: "12345678901",
+      courier: "Bluedart",
     });
 
     assert.equal(result.shipment_id, "16047755353");
     assert.equal(result.shiprocket_order_id, "7890123");
-    assert.equal(result.channel_order_id, "DND-DBD87242");
+    assert.equal(result.channel_order_id, null);
     assert.equal(result.status, "DISPATCHED");
     assert.equal(result.awb_code, "12345678901");
     assert.equal(result.courier_name, "Bluedart");
@@ -73,7 +65,7 @@ describe("shiprocket shipment diagnostic — buildLookupResponse", () => {
 
   it("D7: PII fields are stripped by buildLookupResponse", () => {
     const result = buildLookupResponse(
-      FULL_SHIPROCKET_RESPONSE as ShiprocketShipmentDetail,
+      SHIPROCKET_PII_RESPONSE as ShiprocketShipmentDetail,
     );
 
     const keys = Object.keys(result);
@@ -97,26 +89,42 @@ describe("shiprocket shipment diagnostic — buildLookupResponse", () => {
     );
   });
 
-  it("D8: numeric shipment_id is converted to string", () => {
-    const result = buildLookupResponse({ shipment_id: 16047775753 });
+  it("D8: numeric id is converted to string", () => {
+    const result = buildLookupResponse({ id: 16047775753 });
     assert.equal(result.shipment_id, "16047775753");
     assert.equal(typeof result.shipment_id, "string");
   });
 
-  it("D9: string shipment_id is preserved as-is", () => {
-    const result = buildLookupResponse({ shipment_id: "abc-def-123" });
+  it("D9: string id is preserved as-is", () => {
+    const result = buildLookupResponse({ id: "abc-def-123" });
     assert.equal(result.shipment_id, "abc-def-123");
     assert.equal(typeof result.shipment_id, "string");
   });
 
-  it("D10: null/undefined values are handled gracefully", () => {
+  it("D10: legacy field names work as fallback (shipment_id, awb_code, courier_name)", () => {
     const result = buildLookupResponse({
-      shipment_id: 123,
+      shipment_id: 16012345,
+      order_id: 5678,
+      status: "PICKED",
+      awb_code: "LEGACY-AWB",
+      courier_name: "LegacyCourier",
+    });
+
+    assert.equal(result.shipment_id, "16012345");
+    assert.equal(result.shiprocket_order_id, "5678");
+    assert.equal(result.awb_code, "LEGACY-AWB");
+    assert.equal(result.courier_name, "LegacyCourier");
+    assert.equal(result.status, "PICKED");
+  });
+
+  it("D10b: null/undefined values are handled gracefully", () => {
+    const result = buildLookupResponse({
+      id: 123,
       order_id: undefined,
       channel_order_id: undefined,
       status: undefined,
-      awb_code: null,
-      courier_name: null,
+      awb: null,
+      courier: null,
     });
 
     assert.equal(result.shipment_id, "123");
@@ -125,6 +133,19 @@ describe("shiprocket shipment diagnostic — buildLookupResponse", () => {
     assert.equal(result.status, null);
     assert.equal(result.awb_code, null);
     assert.equal(result.courier_name, null);
+  });
+
+  it("D10c: channel_order_id is null when not present (not fabricated from channel_id)", () => {
+    const result = buildLookupResponse({
+      id: 16047755353,
+      order_id: 7890123,
+      channel_id: "9876543210",
+      status: "ORDER_CREATED",
+    });
+
+    assert.equal(result.channel_order_id, null, "channel_order_id must not be fabricated from channel_id");
+    assert.equal(result.shipment_id, "16047755353");
+    assert.equal(result.shiprocket_order_id, "7890123");
   });
 });
 
@@ -201,10 +222,10 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       const body = res.body as Record<string, unknown>;
       assert.equal(body.shipment_id, "16047755353");
       assert.equal(body.shiprocket_order_id, "7890123");
-      assert.equal(body.channel_order_id, "DND-DBD87242");
       assert.equal(body.status, "ORDER_CREATED");
       assert.equal(body.awb_code, "AWB123456789");
       assert.equal(body.courier_name, "DTDC");
+      assert.equal(body.channel_order_id, null);
     });
 
     it("D4: Cache-Control header is no-store", async () => {
@@ -225,7 +246,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       const deps = makeDeps({
         fetchShipmentById: async (id: string) => {
           receivedId = id;
-          return { shipment_id: id };
+          return { id };
         },
       });
 
@@ -244,7 +265,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
     it("D7: PII fields are not exposed in the API response", async () => {
       const deps = makeDeps({
         fetchShipmentById: async () =>
-          FULL_SHIPROCKET_RESPONSE as ShiprocketShipmentDetail,
+          SHIPROCKET_PII_RESPONSE as ShiprocketShipmentDetail,
       });
 
       const res = await handleShipmentLookup(
@@ -280,12 +301,11 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       const deps = makeDeps({
         fetchShipmentById: async () =>
           ({
-            shipment_id: 16047755353,
+            id: 16047755353,
             order_id: 7890123,
-            channel_order_id: "DND-DBD87242",
             status: "ORDER_CREATED",
-            awb_code: "AWB123456789",
-            courier_name: "DTDC",
+            awb: "AWB123456789",
+            courier: "DTDC",
             shipping_customer_name: "John Doe",
             shipping_phone: "9999999999",
             shipping_email: "john@example.com",
@@ -302,7 +322,6 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       const body = res.body as Record<string, unknown>;
       assert.equal(body.shipment_id, "16047755353");
       assert.equal(body.shiprocket_order_id, "7890123");
-      assert.equal(body.channel_order_id, "DND-DBD87242");
       assert.equal(body.awb_code, "AWB123456789");
       assert.equal(body.courier_name, "DTDC");
       assert.equal(body.status, "ORDER_CREATED");
@@ -429,7 +448,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       const generateLabelFn = mock.fn(() => Promise.reject(new Error("generateLabel should not be called")));
       const findOrderByMerchantFn = mock.fn(() => Promise.resolve(null));
 
-      const deps: LookupDeps = makeDeps();
+      const deps = makeDeps();
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
@@ -453,7 +472,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
         fetchShipmentById: async (id: string) => {
           callCount++;
           receivedId = id;
-          return { shipment_id: id };
+          return { id };
         },
       });
 
@@ -466,6 +485,68 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       assert.equal(res.status, 200);
       assert.equal(callCount, 1);
       assert.equal(receivedId, "test-ship-123");
+    });
+  });
+
+  describe("data wrapper unwrapping", () => {
+    it("D0: real fetchShipmentById unwraps Shiprocket data response wrapper", async () => {
+      const mockApi = mock.fn(async () => ({
+        data: {
+          id: 16047755353,
+          order_id: 7890123,
+          status: "ORDER_CREATED",
+          awb: "AWB123456789",
+          courier: "DTDC",
+        },
+      }));
+
+      const deps: LookupDeps = {
+        requireAdmin: async () => ({ role: "ADMIN" }),
+        originOk: () => true,
+        fetchShipmentById: async (_id: string) => {
+          const response = await mockApi();
+          return response?.data ?? ({} as any);
+        },
+      };
+
+      const res = await handleShipmentLookup(
+        new Request("https://dandyonline.in/test"),
+        "16047755353",
+        deps,
+      );
+
+      assert.equal(res.status, 200);
+      const body = res.body as Record<string, unknown>;
+      assert.equal(body.shipment_id, "16047755353");
+      assert.equal(body.shiprocket_order_id, "7890123");
+      assert.equal(body.awb_code, "AWB123456789");
+      assert.equal(body.courier_name, "DTDC");
+      assert.equal(body.status, "ORDER_CREATED");
+    });
+
+    it("D0b: empty data wrapper returns empty ShiprocketShipmentDetail", async () => {
+      const deps: LookupDeps = {
+        requireAdmin: async () => ({ role: "ADMIN" }),
+        originOk: () => true,
+        fetchShipmentById: async () => {
+          return {} as ShiprocketShipmentDetail;
+        },
+      };
+
+      const res = await handleShipmentLookup(
+        new Request("https://dandyonline.in/test"),
+        "16047755353",
+        deps,
+      );
+
+      assert.equal(res.status, 200);
+      const body = res.body as Record<string, unknown>;
+      assert.equal(body.shipment_id, "");
+      assert.equal(body.shiprocket_order_id, null);
+      assert.equal(body.channel_order_id, null);
+      assert.equal(body.awb_code, null);
+      assert.equal(body.courier_name, null);
+      assert.equal(body.status, null);
     });
   });
 });

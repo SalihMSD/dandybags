@@ -17,6 +17,7 @@ import type {
   ShiprocketOrderLookupResult,
   ShiprocketOrderListResponse,
   ShiprocketShipmentDetail,
+  ShiprocketShipmentDetailResponse,
 } from "./types";
 
 const DEFAULT_BASE_URL = "https://apiv2.shiprocket.in";
@@ -257,7 +258,9 @@ export async function findOrderByMerchantId(merchantOrderId: string): Promise<Sh
 }
 
 export async function fetchShipmentById(shipmentId: string): Promise<ShiprocketShipmentDetail> {
-  return api<ShiprocketShipmentDetail>(`/v1/external/shipments/${encodeURIComponent(shipmentId)}`, {
-    method: "GET",
-  });
+  const response = await api<ShiprocketShipmentDetailResponse>(
+    `/v1/external/shipments/${encodeURIComponent(shipmentId)}`,
+    { method: "GET" },
+  );
+  return response?.data ?? ({} as ShiprocketShipmentDetail);
 }
