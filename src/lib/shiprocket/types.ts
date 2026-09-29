@@ -156,6 +156,15 @@ export interface ShiprocketOrderLookupResult {
   status: string | null;
 }
 
+export interface ShiprocketShipmentDetail {
+  shipment_id?: string | number;
+  order_id?: number;
+  channel_order_id?: string;
+  status?: string;
+  awb_code?: string | null;
+  courier_name?: string | null;
+}
+
 export interface ShiprocketOrderListResponse {
   data: Array<{
     shipment_id?: string | number;

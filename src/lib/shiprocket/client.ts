@@ -16,6 +16,7 @@ import type {
   ShiprocketServiceabilityResponse,
   ShiprocketOrderLookupResult,
   ShiprocketOrderListResponse,
+  ShiprocketShipmentDetail,
 } from "./types";
 
 const DEFAULT_BASE_URL = "https://apiv2.shiprocket.in";
@@ -253,4 +254,10 @@ export async function findOrderByMerchantId(merchantOrderId: string): Promise<Sh
     }
   }
   return null;
+}
+
+export async function fetchShipmentById(shipmentId: string): Promise<ShiprocketShipmentDetail> {
+  return api<ShiprocketShipmentDetail>(`/v1/external/shipments/${encodeURIComponent(shipmentId)}`, {
+    method: "GET",
+  });
 }
