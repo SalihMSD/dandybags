@@ -264,3 +264,97 @@ export async function fetchShipmentById(shipmentId: string): Promise<ShiprocketS
   );
   return response?.data ?? ({} as ShiprocketShipmentDetail);
 }
+
+export interface ShipmentDiagnostics {
+  upstream_status: number;
+  top_level_keys: string[];
+  data_present: boolean;
+  data_type: "object" | "array" | "string" | "number" | "boolean" | "null" | null;
+  data_keys: string[] | null;
+  message: string | null;
+}
+
+export async function fetchShipmentByIdWithDiagnostics(
+  shipmentId: string,
+): Promise<{ data: ShiprocketShipmentDetail; diagnostics: ShipmentDiagnostics }> {
+  const token = await getToken();
+  const url = `${apiBaseUrl()}/v1/external/shipments/${encodeURIComponent(shipmentId)}`;
+  const res = await fetchWithTimeout(url, {
+    method: "GET",
+    headers: { Authorization: `Bearer ${token}` },
+  });
+
+  if (res.status === 401) {
+    clearTokenCache();
+    throw new ShiprocketAuthError("Shiprocket authentication error");
+  }
+  if (res.status === 429) {
+    throw new ShiprocketRateLimitError("Shiprocket rate limit exceeded");
+  }
+  if (res.status === 404) {
+    throw new ShiprocketNotFoundError("Shiprocket resource not found");
+  }
+  if (!res.ok) {
+    const body = await res.text().catch(() => "");
+    throw new ShiprocketError(
+      normalizeShiprocketError(`Shiprocket API error: ${res.status} ${body}`),
+      res.status,
+    );
+  }
+
+  if (res.status === 204) {
+    return {
+      data: {} as ShiprocketShipmentDetail,
+      diagnostics: {
+        upstream_status: 204,
+        top_level_keys: [],
+        data_present: false,
+        data_type: null,
+        data_keys: null,
+        message: null,
+      },
+    };
+  }
+
+  const json: unknown = await res.json().catch(() => null);
+  const obj = json && typeof json === "object" && !Array.isArray(json)
+    ? (json as Record<string, unknown>)
+    : null;
+
+  const dataVal = obj?.data ?? null;
+  const dataPresent = dataVal != null;
+  let dataType: ShipmentDiagnostics["data_type"] = null;
+  if (dataPresent) {
+    if (Array.isArray(dataVal)) {
+      dataType = "array";
+    } else if (typeof dataVal === "string") {
+      dataType = "string";
+    } else if (typeof dataVal === "number") {
+      dataType = "number";
+    } else if (typeof dataVal === "boolean") {
+      dataType = "boolean";
+    } else {
+      dataType = "object";
+    }
+  }
+  const dataKeys = dataPresent && typeof dataVal === "object" && !Array.isArray(dataVal)
+    ? Object.keys(dataVal as Record<string, unknown>)
+    : null;
+
+  let message: string | null = null;
+  if (typeof obj?.message === "string") {
+    message = normalizeShiprocketError(obj.message);
+  }
+
+  return {
+    data: (dataVal as ShiprocketShipmentDetail) ?? ({} as ShiprocketShipmentDetail),
+    diagnostics: {
+      upstream_status: res.status,
+      top_level_keys: obj ? Object.keys(obj) : [],
+      data_present: dataPresent,
+      data_type: dataType,
+      data_keys: dataKeys,
+      message,
+    },
+  };
+}

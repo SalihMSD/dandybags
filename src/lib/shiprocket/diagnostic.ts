@@ -1,12 +1,13 @@
 import { originOk } from "@/lib/auth/helpers";
 import { requireAdmin } from "@/lib/auth/session";
-import { fetchShipmentById } from "@/lib/shiprocket/client";
+import { fetchShipmentByIdWithDiagnostics } from "@/lib/shiprocket/client";
+import type { ShipmentDiagnostics } from "@/lib/shiprocket/client";
+import type { ShiprocketShipmentDetail } from "@/lib/shiprocket/types";
 import {
   ShiprocketError,
   ShiprocketNotFoundError,
   normalizeShiprocketError,
 } from "@/lib/shiprocket/errors";
-import type { ShiprocketShipmentDetail } from "@/lib/shiprocket/types";
 
 export interface LookupResponse {
   shipment_id: string;
@@ -15,6 +16,7 @@ export interface LookupResponse {
   status: string | null;
   awb_code: string | null;
   courier_name: string | null;
+  _diagnostics?: ShipmentDiagnostics;
 }
 
 export function buildLookupResponse(data: ShiprocketShipmentDetail): LookupResponse {
@@ -34,19 +36,26 @@ export function buildLookupResponse(data: ShiprocketShipmentDetail): LookupRespo
 export interface LookupDeps {
   requireAdmin: () => Promise<unknown>;
   originOk: (request: Request) => boolean;
-  fetchShipmentById: (shipmentId: string) => Promise<ShiprocketShipmentDetail>;
+  fetchShipmentByIdWithDiagnostics: (
+    shipmentId: string,
+  ) => Promise<{ data: ShiprocketShipmentDetail; diagnostics: ShipmentDiagnostics }>;
 }
 
 export const defaultLookupDeps: LookupDeps = {
   requireAdmin,
   originOk,
-  fetchShipmentById,
+  fetchShipmentByIdWithDiagnostics,
 };
 
 export interface LookupResult {
   status: number;
   body: unknown;
   headers: Record<string, string>;
+}
+
+export interface FetchResult {
+  data: ShiprocketShipmentDetail;
+  diagnostics: ShipmentDiagnostics;
 }
 
 export async function handleShipmentLookup(
@@ -65,10 +74,12 @@ export async function handleShipmentLookup(
   }
 
   try {
-    const data = await deps.fetchShipmentById(shipmentId);
+    const { data, diagnostics } = await deps.fetchShipmentByIdWithDiagnostics(shipmentId);
+    const response = buildLookupResponse(data);
+
     return {
       status: 200,
-      body: buildLookupResponse(data),
+      body: { ...response, _diagnostics: diagnostics },
       headers: { "Cache-Control": "no-store, max-age=0" },
     };
   } catch (err) {

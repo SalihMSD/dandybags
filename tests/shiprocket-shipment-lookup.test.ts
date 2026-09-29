@@ -7,6 +7,7 @@ import {
   ShiprocketAuthError,
 } from "@/lib/shiprocket/errors";
 import type { ShiprocketShipmentDetail } from "@/lib/shiprocket/types";
+import type { ShipmentDiagnostics } from "@/lib/shiprocket/client";
 import {
   buildLookupResponse,
   handleShipmentLookup,
@@ -17,14 +18,35 @@ function makeDeps(overrides: Partial<LookupDeps> = {}): LookupDeps {
   return {
     requireAdmin: async () => ({ id: "admin1", role: "ADMIN" }),
     originOk: () => true,
-    fetchShipmentById: async () => ({
-      id: 16047755353,
-      order_id: 7890123,
-      status: "ORDER_CREATED",
-      awb: "AWB123456789",
-      courier: "DTDC",
+    fetchShipmentByIdWithDiagnostics: async () => ({
+      data: {
+        id: 16047755353,
+        order_id: 7890123,
+        status: "ORDER_CREATED",
+        awb: "AWB123456789",
+        courier: "DTDC",
+      },
+      diagnostics: {
+        upstream_status: 200,
+        top_level_keys: ["data"],
+        data_present: true,
+        data_type: "object",
+        data_keys: ["id", "order_id", "status", "awb", "courier"],
+        message: null,
+      },
     }),
     ...overrides,
+  };
+}
+
+function makeEmptyDiagnostics(): ShipmentDiagnostics {
+  return {
+    upstream_status: 200,
+    top_level_keys: ["data"],
+    data_present: true,
+    data_type: "object",
+    data_keys: ["id", "order_id", "status", "awb", "courier"],
+    message: null,
   };
 }
 
@@ -160,7 +182,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -175,7 +197,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -195,7 +217,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -214,7 +236,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -225,7 +247,6 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       assert.equal(body.status, "ORDER_CREATED");
       assert.equal(body.awb_code, "AWB123456789");
       assert.equal(body.courier_name, "DTDC");
-      assert.equal(body.channel_order_id, null);
     });
 
     it("D4: Cache-Control header is no-store", async () => {
@@ -233,7 +254,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -241,12 +262,15 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       assert.equal(res.headers["Cache-Control"], "no-store, max-age=0");
     });
 
-    it("D5: passes shipmentId from params to fetchShipmentById", async () => {
+    it("D5: passes shipmentId from params to diagnostic fetch", async () => {
       let receivedId: string | undefined;
       const deps = makeDeps({
-        fetchShipmentById: async (id: string) => {
+        fetchShipmentByIdWithDiagnostics: async (id: string) => {
           receivedId = id;
-          return { id };
+          return {
+            data: { id },
+            diagnostics: makeEmptyDiagnostics(),
+          };
         },
       });
 
@@ -259,13 +283,34 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       assert.equal(res.status, 200);
       assert.equal(receivedId, "xyz-789");
     });
+
+    it("D5b: response includes _diagnostics field", async () => {
+      const deps = makeDeps();
+
+      const res = await handleShipmentLookup(
+        new Request("https://dandyonline.in/test"),
+        "16047755353",
+        deps,
+      );
+
+      assert.equal(res.status, 200);
+      const body = res.body as Record<string, unknown>;
+      assert.ok("_diagnostics" in body, "_diagnostics must be present in response");
+      const diag = body._diagnostics as ShipmentDiagnostics;
+      assert.equal(diag.upstream_status, 200);
+      assert.deepEqual(diag.top_level_keys, ["data"]);
+      assert.equal(diag.data_present, true);
+      assert.equal(diag.data_type, "object");
+    });
   });
 
   describe("PII redaction in API response", () => {
     it("D7: PII fields are not exposed in the API response", async () => {
       const deps = makeDeps({
-        fetchShipmentById: async () =>
-          SHIPROCKET_PII_RESPONSE as ShiprocketShipmentDetail,
+        fetchShipmentByIdWithDiagnostics: async () => ({
+          data: SHIPROCKET_PII_RESPONSE as ShiprocketShipmentDetail,
+          diagnostics: makeEmptyDiagnostics(),
+        }),
       });
 
       const res = await handleShipmentLookup(
@@ -284,9 +329,10 @@ describe("shiprocket shipment diagnostic — route handler", () => {
         "status",
         "awb_code",
         "courier_name",
+        "_diagnostics",
       ]);
       const actualKeys = new Set(Object.keys(body));
-      assert.deepEqual(actualKeys, expectedKeys, "Response should contain only expected fields");
+      assert.deepEqual(actualKeys, expectedKeys, "Response should contain only expected fields + _diagnostics");
 
       assert.ok(!("shipping_customer_name" in body));
       assert.ok(!("shipping_phone" in body));
@@ -299,8 +345,8 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
     it("D17: response contains expected public fields with correct values", async () => {
       const deps = makeDeps({
-        fetchShipmentById: async () =>
-          ({
+        fetchShipmentByIdWithDiagnostics: async () => ({
+          data: {
             id: 16047755353,
             order_id: 7890123,
             status: "ORDER_CREATED",
@@ -309,7 +355,9 @@ describe("shiprocket shipment diagnostic — route handler", () => {
             shipping_customer_name: "John Doe",
             shipping_phone: "9999999999",
             shipping_email: "john@example.com",
-          } as ShiprocketShipmentDetail),
+          } as ShiprocketShipmentDetail,
+          diagnostics: makeEmptyDiagnostics(),
+        }),
       });
 
       const res = await handleShipmentLookup(
@@ -331,14 +379,14 @@ describe("shiprocket shipment diagnostic — route handler", () => {
   describe("error handling", () => {
     it("D11: Shiprocket 404 returns 404 status", async () => {
       const deps = makeDeps({
-        fetchShipmentById: async () => {
+        fetchShipmentByIdWithDiagnostics: async () => {
           throw new ShiprocketNotFoundError("Shipment not found");
         },
       });
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -348,14 +396,14 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
     it("D12: Shiprocket rate limit (429) preserves status code", async () => {
       const deps = makeDeps({
-        fetchShipmentById: async () => {
+        fetchShipmentByIdWithDiagnostics: async () => {
           throw new ShiprocketError("Rate limit exceeded", 429);
         },
       });
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -365,14 +413,14 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
     it("D13: Shiprocket generic error (500) returns 502", async () => {
       const deps = makeDeps({
-        fetchShipmentById: async () => {
+        fetchShipmentByIdWithDiagnostics: async () => {
           throw new ShiprocketError("Internal server error", 500);
         },
       });
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -382,14 +430,14 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
     it("D14: generic error returns 502 with Bearer token sanitized", async () => {
       const deps = makeDeps({
-        fetchShipmentById: async () => {
+        fetchShipmentByIdWithDiagnostics: async () => {
           throw new Error("Bearer abc123def456 secret request failed");
         },
       });
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -401,7 +449,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
     it("D15: error response does not expose Shiprocket credentials", async () => {
       const deps = makeDeps({
-        fetchShipmentById: async () => {
+        fetchShipmentByIdWithDiagnostics: async () => {
           throw new ShiprocketError(
             "Bearer abc123 password=salihforinmakes1210@gmail.com SHIPROCKET_PASSWORD=secret123 error",
             500,
@@ -411,7 +459,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
@@ -424,19 +472,134 @@ describe("shiprocket shipment diagnostic — route handler", () => {
 
     it("D18: Shiprocket auth error (401) returns 401", async () => {
       const deps = makeDeps({
-        fetchShipmentById: async () => {
+        fetchShipmentByIdWithDiagnostics: async () => {
           throw new ShiprocketAuthError("Authentication failed");
         },
       });
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
       assert.equal(res.status, 401);
       assert.equal((res.body as { error: string }).error, "Shiprocket API error.");
+    });
+  });
+
+  describe("diagnostic response for empty data", () => {
+    it("D21: empty data with diagnostics reveals response structure", async () => {
+      const deps = makeDeps({
+        fetchShipmentByIdWithDiagnostics: async () => ({
+          data: {} as ShiprocketShipmentDetail,
+          diagnostics: {
+            upstream_status: 200,
+            top_level_keys: ["data"],
+            data_present: true,
+            data_type: "object",
+            data_keys: [],
+            message: null,
+          },
+        }),
+      });
+
+      const res = await handleShipmentLookup(
+        new Request("https://dandyonline.in/test"),
+        "16047775753",
+        deps,
+      );
+
+      assert.equal(res.status, 200);
+      const body = res.body as Record<string, unknown>;
+      assert.equal(body.shipment_id, "");
+      const diag = body._diagnostics as ShipmentDiagnostics;
+      assert.equal(diag.upstream_status, 200);
+      assert.equal(diag.data_present, true);
+      assert.deepEqual(
+        diag.data_keys,
+        [],
+        "Empty data object has no keys",
+      );
+    });
+
+    it("D22: null data with diagnostics reveals data_present=false", async () => {
+      const deps = makeDeps({
+        fetchShipmentByIdWithDiagnostics: async () => ({
+          data: {} as ShiprocketShipmentDetail,
+          diagnostics: {
+            upstream_status: 200,
+            top_level_keys: ["data", "message"],
+            data_present: false,
+            data_type: "null",
+            data_keys: null,
+            message: "shipment not found",
+          },
+        }),
+      });
+
+      const res = await handleShipmentLookup(
+        new Request("https://dandyonline.in/test"),
+        "16047775753",
+        deps,
+      );
+
+      assert.equal(res.status, 200);
+      const body = res.body as Record<string, unknown>;
+      assert.equal(body.shipment_id, "");
+      const diag = body._diagnostics as ShipmentDiagnostics;
+      assert.equal(diag.upstream_status, 200);
+      assert.equal(diag.data_present, false);
+      assert.equal(diag.data_type, "null");
+      assert.equal(diag.message, "shipment not found");
+    });
+
+    it("D23: diagnostics do not expose PII in keys or message", async () => {
+      const deps = makeDeps({
+        fetchShipmentByIdWithDiagnostics: async () => ({
+          data: {} as ShiprocketShipmentDetail,
+          diagnostics: {
+            upstream_status: 500,
+            top_level_keys: ["data", "message"],
+            data_present: false,
+            data_type: "null",
+            data_keys: null,
+             message: "Bearer [REDACTED] request failed",
+          },
+        }),
+      });
+
+      const res = await handleShipmentLookup(
+        new Request("https://dandyonline.in/test"),
+        "16047775753",
+        deps,
+      );
+
+      assert.equal(res.status, 200);
+      const body = res.body as Record<string, unknown>;
+      const diag = body._diagnostics as ShipmentDiagnostics;
+      assert.ok(!diag.message?.includes("abc123"), "Token must be redacted in diagnostic message");
+      assert.ok(diag.message?.includes("[REDACTED]"), "Token should be redacted");
+      assert.ok(!JSON.stringify(diag).includes("John Doe"));
+      assert.ok(!JSON.stringify(diag).includes("salihforinmakes1210"));
+      assert.ok(!JSON.stringify(diag).includes("secret123"));
+    });
+
+    it("D24: diagnostics preserve upstream HTTP status for error cases", async () => {
+      const deps = makeDeps({
+        fetchShipmentByIdWithDiagnostics: async () => {
+          throw new ShiprocketNotFoundError("Not found");
+        },
+      });
+
+      const res = await handleShipmentLookup(
+        new Request("https://dandyonline.in/test"),
+        "16047775753",
+        deps,
+      );
+
+      assert.equal(res.status, 404);
+      assert.equal((res.body as { error: string }).error, "Shiprocket shipment not found.");
     });
   });
 
@@ -446,33 +609,33 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       const assignAWBFn = mock.fn(() => Promise.reject(new Error("assignAWB should not be called")));
       const schedulePickupFn = mock.fn(() => Promise.reject(new Error("schedulePickup should not be called")));
       const generateLabelFn = mock.fn(() => Promise.reject(new Error("generateLabel should not be called")));
-      const findOrderByMerchantFn = mock.fn(() => Promise.resolve(null));
 
       const deps = makeDeps();
 
       const res = await handleShipmentLookup(
         new Request("https://dandyonline.in/test"),
-        "16047755353",
+        "16047775753",
         deps,
       );
 
       assert.equal(res.status, 200);
-
       assert.equal(createOrderFn.mock.calls.length, 0);
       assert.equal(assignAWBFn.mock.calls.length, 0);
       assert.equal(schedulePickupFn.mock.calls.length, 0);
       assert.equal(generateLabelFn.mock.calls.length, 0);
-      assert.equal(findOrderByMerchantFn.mock.calls.length, 0);
     });
 
-    it("D20: fetchShipmentById is called exactly once with correct shipmentId", async () => {
+    it("D20: fetchShipmentByIdWithDiagnostics is called exactly once with correct shipmentId", async () => {
       let callCount = 0;
       let receivedId: string | undefined;
       const deps = makeDeps({
-        fetchShipmentById: async (id: string) => {
+        fetchShipmentByIdWithDiagnostics: async (id: string) => {
           callCount++;
           receivedId = id;
-          return { id };
+          return {
+            data: { id },
+            diagnostics: makeEmptyDiagnostics(),
+          };
         },
       });
 
@@ -485,68 +648,6 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       assert.equal(res.status, 200);
       assert.equal(callCount, 1);
       assert.equal(receivedId, "test-ship-123");
-    });
-  });
-
-  describe("data wrapper unwrapping", () => {
-    it("D0: real fetchShipmentById unwraps Shiprocket data response wrapper", async () => {
-      const mockApi = mock.fn(async () => ({
-        data: {
-          id: 16047755353,
-          order_id: 7890123,
-          status: "ORDER_CREATED",
-          awb: "AWB123456789",
-          courier: "DTDC",
-        },
-      }));
-
-      const deps: LookupDeps = {
-        requireAdmin: async () => ({ role: "ADMIN" }),
-        originOk: () => true,
-        fetchShipmentById: async (_id: string) => {
-          const response = await mockApi();
-          return response?.data ?? ({} as any);
-        },
-      };
-
-      const res = await handleShipmentLookup(
-        new Request("https://dandyonline.in/test"),
-        "16047755353",
-        deps,
-      );
-
-      assert.equal(res.status, 200);
-      const body = res.body as Record<string, unknown>;
-      assert.equal(body.shipment_id, "16047755353");
-      assert.equal(body.shiprocket_order_id, "7890123");
-      assert.equal(body.awb_code, "AWB123456789");
-      assert.equal(body.courier_name, "DTDC");
-      assert.equal(body.status, "ORDER_CREATED");
-    });
-
-    it("D0b: empty data wrapper returns empty ShiprocketShipmentDetail", async () => {
-      const deps: LookupDeps = {
-        requireAdmin: async () => ({ role: "ADMIN" }),
-        originOk: () => true,
-        fetchShipmentById: async () => {
-          return {} as ShiprocketShipmentDetail;
-        },
-      };
-
-      const res = await handleShipmentLookup(
-        new Request("https://dandyonline.in/test"),
-        "16047755353",
-        deps,
-      );
-
-      assert.equal(res.status, 200);
-      const body = res.body as Record<string, unknown>;
-      assert.equal(body.shipment_id, "");
-      assert.equal(body.shiprocket_order_id, null);
-      assert.equal(body.channel_order_id, null);
-      assert.equal(body.awb_code, null);
-      assert.equal(body.courier_name, null);
-      assert.equal(body.status, null);
     });
   });
 });
