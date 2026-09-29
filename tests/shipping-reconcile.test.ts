@@ -110,6 +110,32 @@ function createMockDb(shipments: ShipmentRecord[] = []) {
       }
       return Promise.resolve(null);
     },
+    create: (args: any) => {
+      calls.push({ model: "shipment", method: "create", args: [args] });
+      const data = args.data;
+      const full: ShipmentRecord = {
+        id: data.id || `ship_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`,
+        orderId: data.orderId,
+        providerOrderId: data.providerOrderId ?? null,
+        providerShipmentId: data.providerShipmentId ?? null,
+        awb: data.awb ?? null,
+        courierName: data.courierName ?? null,
+        status: data.status ?? "PENDING",
+        trackingUrl: data.trackingUrl ?? null,
+        labelUrl: data.labelUrl ?? null,
+        shippingCost: data.shippingCost ?? null,
+        pickupScheduledAt: data.pickupScheduledAt ?? null,
+        shippedAt: data.shippedAt ?? null,
+        deliveredAt: data.deliveredAt ?? null,
+        cancelledAt: data.cancelledAt ?? null,
+        failureReason: data.failureReason ?? null,
+        idempotencyKey: data.idempotencyKey ?? `shp_${data.orderId}`,
+        createdAt: now(),
+        updatedAt: now(),
+      };
+      state.shipments[full.id] = full;
+      return Promise.resolve(full);
+    },
     update: (args: any) => {
       calls.push({ model: "shipment", method: "update", args: [args] });
       const id = args.where?.id;
@@ -584,22 +610,44 @@ describe("reconcileShipmentForOrder — edge cases and config", () => {
     }
   });
 
-  it("R11: no local shipment exists → returns SHIPMENT_NOT_FOUND", async () => {
+  it("R11: no local Shipment + remote Shiprocket order → creates exactly one local Shipment (recovered)", async () => {
     const ctx = createMockDb();
     ctx.setOrder("DND-NOSHIP", { id: "DND-NOSHIP", paymentStatus: "PAID", orderStatus: "PLACED", items: [] });
 
     const deps = makeBaseDeps(ctx.db);
-    deps.reconcileShirocketOrder = () => Promise.resolve(makeLookupResult());
+    let createOrderCalled = false;
+    deps.createOrder = () => {
+      createOrderCalled = true;
+      return Promise.resolve({} as any);
+    };
+    deps.reconcileShirocketOrder = () =>
+      Promise.resolve(
+        makeLookupResult({ providerOrderId: 16047775753 as any, providerShipmentId: 16047775753 as any }),
+      );
 
     const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
     const result = await reconcileShipmentForOrder("DND-NOSHIP", deps);
 
-    if (result.ok) {
-      assert.fail("Expected SHIPMENT_NOT_FOUND");
+    assert.equal(createOrderCalled, false, "createOrder must NOT be called during recovery");
+    if (!result.ok) {
+      assert.fail(`Expected success but got: ${result.error}`);
     } else {
-      assert.equal(result.code, "SHIPMENT_NOT_FOUND");
-      assert.equal(result.statusCode, 404);
+      assert.equal(result.action, "recovered");
+      assert.equal(result.shipment.providerOrderId, "16047775753");
+      assert.equal(typeof result.shipment.providerOrderId, "string");
+      assert.equal(result.shipment.status, "CREATED");
     }
+
+    const creates = ctx.getCalls("shipment", "create");
+    assert.equal(creates.length, 1, "Exactly one Shipment.create should have been called");
+    const created = (creates[0].args[0] as any).data;
+    assert.equal(typeof created.providerOrderId, "string");
+    assert.equal(typeof created.providerShipmentId, "string");
+    assert.equal(created.providerOrderId, "16047775753");
+    assert.equal(created.providerShipmentId, "16047775753");
+    assert.equal(created.status, "CREATED");
+    assert.equal(created.provider, "SHIPROCKET");
+    assert.ok(created.idempotencyKey, "idempotencyKey must be set");
   });
 
   it("R12: FAILED shipment is reconcilable", async () => {
@@ -652,5 +700,282 @@ describe("reconcileShipmentForOrder — edge cases and config", () => {
       assert.equal(result.code, "STATUS_NOT_RECONCILABLE");
       assert.equal(result.statusCode, 409);
     }
+  });
+});
+
+describe("reconcileShipmentForOrder — missing local Shipment recovery", () => {
+  it("R14: no local Shipment + remote order with AWB → creates local Shipment with AWB preserved", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-NOSHIP-AWB", { id: "DND-NOSHIP-AWB", paymentStatus: "PAID", orderStatus: "PLACED", items: [] });
+
+    const deps = makeBaseDeps(ctx.db);
+    let createOrderCalled = false;
+    deps.createOrder = () => {
+      createOrderCalled = true;
+      return Promise.resolve({} as any);
+    };
+    deps.reconcileShirocketOrder = () =>
+      Promise.resolve(
+        makeLookupResult({
+          providerOrderId: 16047775753 as any,
+          providerShipmentId: 16047775753 as any,
+          awb: "AWB-9999999999",
+          courierName: "BLUEDART",
+        }),
+      );
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-NOSHIP-AWB", deps);
+
+    assert.equal(createOrderCalled, false, "createOrder must NOT be called");
+    if (!result.ok) {
+      assert.fail(`Expected success: ${result.error}`);
+    } else {
+      assert.equal(result.action, "recovered");
+      assert.equal(result.shipment.awb, "AWB-9999999999");
+      assert.equal(result.shipment.courierName, "BLUEDART");
+      assert.equal(result.shipment.status, "CREATED");
+      assert.equal(result.shipment.failureReason, null);
+    }
+
+    const creates = ctx.getCalls("shipment", "create");
+    assert.equal(creates.length, 1);
+    const created = (creates[0].args[0] as any).data;
+    assert.equal(created.awb, "AWB-9999999999");
+    assert.equal(created.courierName, "BLUEDART");
+    assert.equal(created.status, "CREATED");
+  });
+
+  it("R15: no local Shipment + no remote Shiprocket order → no local Shipment created", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-NOSHIP-NOREMOTE", {
+      id: "DND-NOSHIP-NOREMOTE",
+      paymentStatus: "PAID",
+      orderStatus: "PLACED",
+      items: [],
+    });
+
+    const deps = makeBaseDeps(ctx.db);
+    let createOrderCalled = false;
+    deps.createOrder = () => {
+      createOrderCalled = true;
+      return Promise.resolve({} as any);
+    };
+    deps.reconcileShirocketOrder = () => Promise.resolve(null);
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-NOSHIP-NOREMOTE", deps);
+
+    assert.equal(createOrderCalled, false, "createOrder must NOT be called");
+    if (!result.ok) {
+      assert.fail(`Expected no_remote_order: ${result.error}`);
+    } else {
+      assert.equal(result.action, "no_remote_order");
+    }
+
+    const creates = ctx.getCalls("shipment", "create");
+    assert.equal(creates.length, 0, "No Shipment.create should have been called");
+  });
+
+  it("R16: no local Shipment + lookup throws → fails with SHIPPROCKET_API_ERROR, no create", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-NOSHIP-ERR", { id: "DND-NOSHIP-ERR", paymentStatus: "PAID", orderStatus: "PLACED", items: [] });
+
+    const deps = makeBaseDeps(ctx.db);
+    deps.reconcileShirocketOrder = () => Promise.reject(new Error("Shiprocket API is down"));
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-NOSHIP-ERR", deps);
+
+    if (result.ok) {
+      assert.fail("Expected failure from lookup error");
+    } else {
+      assert.equal(result.code, "SHIPROCKET_API_ERROR");
+      assert.equal(result.statusCode, 502);
+    }
+
+    const creates = ctx.getCalls("shipment", "create");
+    assert.equal(creates.length, 0, "No Shipment.create should have been called");
+  });
+
+  it("R17: no local Shipment + invalid providerOrderId → fails with INVALID_PROVIDER_ID", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-NOSHIP-INVALID", {
+      id: "DND-NOSHIP-INVALID",
+      paymentStatus: "PAID",
+      orderStatus: "PLACED",
+      items: [],
+    });
+
+    const deps = makeBaseDeps(ctx.db);
+    deps.reconcileShirocketOrder = () =>
+      Promise.resolve(makeLookupResult({ providerOrderId: "undefined" as any, providerShipmentId: "undefined" as any }));
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-NOSHIP-INVALID", deps);
+
+    if (result.ok) {
+      assert.fail("Expected failure for invalid providerOrderId");
+    } else {
+      assert.equal(result.code, "INVALID_PROVIDER_ID");
+    }
+
+    const creates = ctx.getCalls("shipment", "create");
+    assert.equal(creates.length, 0, "No Shipment.create should have been called");
+  });
+
+  it("R18: no local Shipment + concurrent recovery → unique conflict, re-read returns existing", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-NOSHIP-CONCURRENT", {
+      id: "DND-NOSHIP-CONCURRENT",
+      paymentStatus: "PAID",
+      orderStatus: "PLACED",
+      items: [],
+    });
+
+    const deps = makeBaseDeps(ctx.db);
+    deps.reconcileShirocketOrder = () =>
+      Promise.resolve(makeLookupResult({ providerOrderId: 16047775753 as any }));
+
+    let createCallCount = 0;
+    const originalCreate = ctx.db.shipment.create;
+    ctx.db.shipment.create = (args: any) => {
+      createCallCount++;
+      if (createCallCount === 1) {
+        const data = args.data;
+        const full: ShipmentRecord = {
+          id: data.id,
+          orderId: data.orderId,
+          providerOrderId: data.providerOrderId,
+          providerShipmentId: data.providerShipmentId,
+          awb: data.awb ?? null,
+          courierName: data.courierName ?? null,
+          status: data.status ?? "PENDING",
+          trackingUrl: data.trackingUrl ?? null,
+          labelUrl: data.labelUrl ?? null,
+          shippingCost: data.shippingCost ?? null,
+          pickupScheduledAt: data.pickupScheduledAt ?? null,
+          shippedAt: null,
+          deliveredAt: null,
+          cancelledAt: null,
+          failureReason: data.failureReason ?? null,
+          idempotencyKey: data.idempotencyKey ?? `shp_${data.orderId}`,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        };
+        ctx.state.shipments[full.id] = full;
+        ctx.calls.push({ model: "shipment", method: "create", args: [args] });
+        const err: any = new Error("Unique constraint failed");
+        err.code = "P2002";
+        return Promise.reject(err);
+      }
+      return originalCreate(args);
+    };
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-NOSHIP-CONCURRENT", deps);
+
+    if (!result.ok) {
+      assert.fail(`Expected success from re-read: ${result.error}`);
+    } else {
+      assert.equal(result.action, "recovered");
+      assert.equal(result.shipment.providerOrderId, "16047775753");
+    }
+
+    const creates = ctx.getCalls("shipment", "create");
+    assert.equal(creates.length, 1, "Only one create call should have been made (after conflict re-read)");
+  });
+
+  it("R19: no local Shipment + lookup returns null → no_remote_order (no DB mutation)", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-R19", { id: "DND-R19", paymentStatus: "PAID", orderStatus: "PLACED", items: [] });
+
+    const deps = makeBaseDeps(ctx.db);
+    deps.reconcileShirocketOrder = () => Promise.resolve(null);
+
+    const beforeCreates = ctx.getCalls("shipment", "create");
+    const beforeEvents = ctx.getCalls("shipmentEvent", "create");
+    const beforeUpdates = ctx.getCalls("shipment", "update");
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-R19", deps);
+
+    if (!result.ok) {
+      assert.fail(`Expected no_remote_order: ${result.error}`);
+    } else {
+      assert.equal(result.action, "no_remote_order");
+    }
+
+    assert.equal(ctx.getCalls("shipment", "create").length - beforeCreates.length, 0, "No Shipment.create");
+    assert.equal(ctx.getCalls("shipmentEvent", "create").length - beforeEvents.length, 0, "No ShipmentEvent.create");
+    assert.equal(ctx.getCalls("shipment", "update").length - beforeUpdates.length, 0, "No Shipment.update");
+  });
+
+  it("R20: recovery creates exactly one Shipment even with retry", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-R20", { id: "DND-R20", paymentStatus: "PAID", orderStatus: "PLACED", items: [] });
+
+    const deps = makeBaseDeps(ctx.db);
+    deps.reconcileShirocketOrder = () =>
+      Promise.resolve(makeLookupResult({ providerOrderId: 16047775753 as any }));
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+
+    const r1 = await reconcileShipmentForOrder("DND-R20", deps);
+    if (!r1.ok) {
+      assert.fail(`First call failed: ${r1.error}`);
+    }
+    assert.equal(r1.action, "recovered");
+
+    // Second call: shipment now exists with providerOrderId set → SHIPMENT_ALREADY_ATTACHED
+    const r2 = await reconcileShipmentForOrder("DND-R20", deps);
+    if (r2.ok) {
+      assert.fail("Expected second call to fail with SHIPMENT_ALREADY_ATTACHED");
+    } else {
+      assert.equal(r2.code, "SHIPMENT_ALREADY_ATTACHED");
+    }
+
+    const creates = ctx.getCalls("shipment", "create");
+    assert.equal(creates.length, 1, "Exactly one Shipment.create across both calls");
+  });
+
+  it("R21: recovery preserves AWB/courier when returned by lookup; null otherwise", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-R21", { id: "DND-R21", paymentStatus: "PAID", orderStatus: "PLACED", items: [] });
+
+    const deps = makeBaseDeps(ctx.db);
+    deps.reconcileShirocketOrder = () =>
+      Promise.resolve(makeLookupResult({ providerOrderId: 16047775753 as any, awb: null, courierName: null }));
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-R21", deps);
+
+    if (!result.ok) assert.fail(`Expected success: ${result.error}`);
+    assert.equal(result.action, "recovered");
+    assert.equal(result.shipment.awb, null);
+    assert.equal(result.shipment.courierName, null);
+
+    const creates = ctx.getCalls("shipment", "create");
+    const created = (creates[0].args[0] as any).data;
+    assert.equal(created.awb, null);
+    assert.equal(created.courierName, null);
+  });
+
+  it("R22: recovery record providerShipmentId falls back to providerOrderId if invalid", async () => {
+    const ctx = createMockDb();
+    ctx.setOrder("DND-R22", { id: "DND-R22", paymentStatus: "PAID", orderStatus: "PLACED", items: [] });
+
+    const deps = makeBaseDeps(ctx.db);
+    deps.reconcileShirocketOrder = () =>
+      Promise.resolve(
+        makeLookupResult({ providerOrderId: 16047775753 as any, providerShipmentId: "null" as any }),
+      );
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-R22", deps);
+
+    if (!result.ok) assert.fail(`Expected success: ${result.error}`);
+    assert.equal(result.action, "recovered");
+    assert.equal(result.shipment.providerShipmentId, "16047775753", "providerShipmentId should fall back to providerOrderId");
   });
 });

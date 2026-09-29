@@ -50,6 +50,7 @@ export type ShipmentDetail = {
   shipmentId: string;
   status: string;
   providerOrderId: string | null;
+  providerShipmentId: string | null;
   awb: string | null;
   courierName: string | null;
   trackingUrl: string | null;
@@ -667,6 +668,7 @@ async function createShipmentForOrderInner(
       shipmentId: finalShipment.id,
       status: finalShipment.status,
       providerOrderId: finalShipment.providerOrderId,
+      providerShipmentId: finalShipment.providerShipmentId,
       awb: finalShipment.awb,
       courierName: finalShipment.courierName ?? null,
       trackingUrl: finalShipment.trackingUrl ?? null,
@@ -802,6 +804,7 @@ async function resumeFromExistingShipment(
       shipmentId: finalShipment.id,
       status: finalShipment.status,
       providerOrderId: finalShipment.providerOrderId,
+      providerShipmentId: finalShipment.providerShipmentId,
       awb: finalShipment.awb,
       courierName: finalShipment.courierName ?? null,
       trackingUrl: finalShipment.trackingUrl ?? null,
@@ -849,6 +852,12 @@ export type ReconcileShipmentResult =
     }
   | {
       ok: true;
+      shipment: ShipmentDetail;
+      action: "recovered";
+      message: string;
+    }
+  | {
+      ok: true;
       action: "no_remote_order";
       message: string;
     }
@@ -890,6 +899,128 @@ export async function reconcileShipmentForOrder(
   }
 }
 
+async function recoverMissingLocalShipment(
+  orderId: string,
+  deps: ShipmentDeps,
+): Promise<ReconcileShipmentResult> {
+  const { prisma: db } = deps;
+
+  let lookupResult: ShiprocketOrderLookupResult | null;
+  try {
+    lookupResult = await deps.reconcileShirocketOrder(orderId);
+  } catch (err) {
+    return {
+      ok: false,
+      error: `Shiprocket lookup failed: ${sanitizeShiprocketError(err)}`,
+      code: "SHIPROCKET_API_ERROR",
+      statusCode: 502,
+    };
+  }
+
+  if (!lookupResult) {
+    return {
+      ok: true,
+      action: "no_remote_order",
+      message: `No local shipment and no Shiprocket order found for DANDY order ${orderId}. The Shiprocket createOrder was never called or failed. Manual investigation required.`,
+    };
+  }
+
+  const providerOrderId = String(lookupResult.providerOrderId);
+  const providerShipmentId = String(lookupResult.providerShipmentId);
+
+  if (!isValidProviderId(providerOrderId)) {
+    return {
+      ok: false,
+      error: "Shiprocket lookup returned an invalid providerOrderId. Manual investigation required.",
+      code: "INVALID_PROVIDER_ID",
+      statusCode: 502,
+    };
+  }
+
+  const shipmentId = newId("shp");
+  const idempotencyKey = newId("shp");
+
+  try {
+    await db.shipment.create({
+      data: {
+        id: shipmentId,
+        orderId,
+        provider: "SHIPROCKET",
+        providerOrderId,
+        providerShipmentId: isValidProviderId(providerShipmentId)
+          ? providerShipmentId
+          : providerOrderId,
+        awb: lookupResult.awb,
+        courierName: lookupResult.courierName,
+        status: "CREATED",
+        trackingUrl: null,
+        shippingCost: null,
+        labelUrl: null,
+        pickupScheduledAt: null,
+        idempotencyKey,
+      },
+    });
+  } catch (err: any) {
+    if (err.code === "P2002") {
+      const rechecked = await getExistingShipment(db, orderId);
+      if (rechecked) {
+        return {
+          ok: true,
+          action: "recovered",
+          message: `Local shipment already existed (created concurrently). Status: ${rechecked.status}.`,
+          shipment: {
+            shipmentId: rechecked.id,
+            status: rechecked.status,
+            providerOrderId: rechecked.providerOrderId,
+            providerShipmentId: rechecked.providerShipmentId,
+            awb: rechecked.awb,
+            courierName: rechecked.courierName ?? null,
+            trackingUrl: rechecked.trackingUrl ?? null,
+            labelUrl: rechecked.labelUrl ?? null,
+            shippingCost: rechecked.shippingCost ? Number(rechecked.shippingCost) : null,
+            pickupScheduledAt: rechecked.pickupScheduledAt?.toISOString() ?? null,
+            failureReason: rechecked.failureReason,
+          },
+        };
+      }
+    }
+    throw err;
+  }
+
+  await recordShipmentEvent(db, {
+    shipmentId,
+    status: "CREATED",
+    rawStatus: "recovered_from_shiprocket",
+    activity: "Local shipment created and recovered from existing Shiprocket order via admin recovery action",
+    location: null,
+    note: lookupResult.orderId
+      ? `Shiprocket order_id: ${lookupResult.orderId}`
+      : null,
+    occurredAt: new Date(),
+  }).catch(() => undefined);
+
+  const created = await getExistingShipment(db, orderId);
+
+  return {
+    ok: true,
+    action: "recovered",
+    message: `Local shipment created and attached to existing Shiprocket order (ID: ${providerOrderId}). Status: CREATED. AWB/pickup can be assigned via Retry Shipment.`,
+    shipment: {
+      shipmentId: created!.id,
+      status: created!.status,
+      providerOrderId: created!.providerOrderId,
+      providerShipmentId: created!.providerShipmentId,
+      awb: created!.awb,
+      courierName: created!.courierName ?? null,
+      trackingUrl: created!.trackingUrl ?? null,
+      labelUrl: created!.labelUrl ?? null,
+      shippingCost: created!.shippingCost ? Number(created!.shippingCost) : null,
+      pickupScheduledAt: created!.pickupScheduledAt?.toISOString() ?? null,
+      failureReason: created!.failureReason,
+    },
+  };
+}
+
 async function reconcileShipmentForOrderInner(
   orderId: string,
   deps: ShipmentDeps,
@@ -899,12 +1030,7 @@ async function reconcileShipmentForOrderInner(
   const existing = await getExistingShipment(db, orderId);
 
   if (!existing) {
-    return {
-      ok: false,
-      error: `No local shipment found for order ${orderId}. Cannot reconcile.`,
-      code: "SHIPMENT_NOT_FOUND",
-      statusCode: 404,
-    };
+    return recoverMissingLocalShipment(orderId, deps);
   }
 
   if (existing.providerOrderId) {
@@ -993,6 +1119,7 @@ async function reconcileShipmentForOrderInner(
       shipmentId: updated!.id,
       status: updated!.status,
       providerOrderId: updated!.providerOrderId,
+      providerShipmentId: updated!.providerShipmentId,
       awb: updated!.awb,
       courierName: updated!.courierName ?? null,
       trackingUrl: updated!.trackingUrl ?? null,

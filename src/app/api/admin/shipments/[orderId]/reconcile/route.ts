@@ -21,20 +21,20 @@ export async function POST(request: Request, ctx: Ctx) {
   try {
     const result = await reconcileShipmentForOrder(orderId);
 
-    if (result.ok) {
-      if (result.action === "reconciled") {
-        return Response.json(
-          {
-            ok: true,
-            action: "reconciled",
-            message: result.message,
-            shipment: result.shipment,
-          },
-          {
-            headers: { "Cache-Control": "no-store, max-age=0" },
-          },
-        );
-      }
+     if (result.ok) {
+       if (result.action === "reconciled" || result.action === "recovered") {
+         return Response.json(
+           {
+             ok: true,
+             action: result.action,
+             message: result.message,
+             shipment: result.shipment,
+           },
+           {
+             headers: { "Cache-Control": "no-store, max-age=0" },
+           },
+         );
+       }
       return Response.json(
         {
           ok: true,
