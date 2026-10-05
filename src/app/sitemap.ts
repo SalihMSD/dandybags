@@ -3,7 +3,12 @@ import { prisma } from "@/lib/db/prisma";
 import { categories } from "@/lib/categories";
 import { siteUrl } from "@/lib/site";
 
-export const dynamic = "force-static";
+// Evaluated at build time.
+const isStaticBuild = process.env.GITHUB_PAGES === "true";
+
+// GitHub Pages build: must be "force-static" (compatible with `output: export`).
+// Vercel production: "force-dynamic" — sitemap is always fresh (existing behaviour).
+export const dynamic = isStaticBuild ? "force-static" : "force-dynamic";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
@@ -32,6 +37,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
     priority: 0.7,
   }));
 
+  // GitHub Pages: no Prisma — only include URLs that actually exist as static pages.
+  if (isStaticBuild) {
+    return [...staticRoutes, ...categoryRoutes];
+  }
+
+  // Vercel production: include DB-backed product URLs (existing behaviour).
   const dbProducts = await prisma.product.findMany({
     select: { slug: true },
   });

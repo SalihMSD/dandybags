@@ -1,12 +1,21 @@
 import type { Metadata } from "next";
 import { notFound } from "next/navigation";
 import { ProductCard } from "@/components/ProductCard";
-import { getCategory } from "@/lib/categories";
+import { getCategory, categories } from "@/lib/categories";
 import { getSessionUser } from "@/lib/auth/session";
 import { getWishlistSkus } from "@/lib/db/wishlist";
 import { listProductsByCategory } from "@/lib/db/products";
 
 type Props = { params: Promise<{ slug: string }> };
+
+// Evaluated at build time. True only during the GitHub Pages static export.
+const isStaticBuild = process.env.GITHUB_PAGES === "true";
+
+// Enumerate routes from the static categories array — no DB needed.
+// On Vercel (no `output: export`) Next.js ignores this for SSR routes.
+export function generateStaticParams() {
+  return categories.map((c) => ({ slug: c.slug }));
+}
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
@@ -36,8 +45,10 @@ export default async function CategoryPage({ params }: Props) {
   const { slug } = await params;
   const c = getCategory(slug);
   if (!c) notFound();
-  const products = await listProductsByCategory(c.slug);
-  const user = await getSessionUser();
+
+  // GitHub Pages: skip all DB/session calls — no DATABASE_URL in CI.
+  const products = isStaticBuild ? [] : await listProductsByCategory(c.slug);
+  const user = isStaticBuild ? null : await getSessionUser();
   const wishlistSkus = user ? await getWishlistSkus(user.id) : [];
 
   return (
@@ -45,11 +56,26 @@ export default async function CategoryPage({ params }: Props) {
       <p className="text-[11px] tracking-[0.2em] uppercase">Collection</p>
       <h1 className="mt-2 font-serif text-4xl sm:text-5xl">{c.name}</h1>
       <p className="mt-3 max-w-xl text-ink-soft">{c.description}</p>
-      <div className="mt-8 grid grid-cols-2 items-stretch gap-2.5 sm:mt-10 sm:gap-4 lg:grid-cols-4">
-        {products.map((p, i) => (
-          <ProductCard key={p.sku} product={p} priority={i < 4} saved={wishlistSkus.includes(p.sku)} />
-        ))}
-      </div>
+
+      {isStaticBuild ? (
+        // GitHub Pages: CTA to live store for this category.
+        <div className="mt-10 flex flex-col items-center gap-4 text-center">
+          <p className="text-sm text-ink-soft">View all {c.name} products on our online store.</p>
+          <a
+            href={`https://www.dandyonline.in/categories/${slug}`}
+            className="inline-block rounded bg-ink px-8 py-3 text-sm font-semibold text-white hover:bg-ink/90"
+          >
+            Browse {c.name} →
+          </a>
+        </div>
+      ) : (
+        // Vercel production: existing DB-backed grid, unchanged.
+        <div className="mt-8 grid grid-cols-2 items-stretch gap-2.5 sm:mt-10 sm:gap-4 lg:grid-cols-4">
+          {products.map((p, i) => (
+            <ProductCard key={p.sku} product={p} priority={i < 4} saved={wishlistSkus.includes(p.sku)} />
+          ))}
+        </div>
+      )}
     </div>
   );
 }

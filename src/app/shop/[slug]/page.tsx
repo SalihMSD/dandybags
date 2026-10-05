@@ -14,6 +14,12 @@ import { site, siteUrl } from "@/lib/site";
 
 type Props = { params: Promise<{ slug: string }> };
 
+// GitHub Pages static export: no product-detail pages are pre-rendered.
+// Vercel (SSR): this function is ignored entirely.
+export function generateStaticParams() {
+  return [];
+}
+
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { slug } = await params;
   const product = await getPublicProductBySlug(slug);
