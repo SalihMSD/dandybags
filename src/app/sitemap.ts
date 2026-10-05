@@ -6,9 +6,10 @@ import { siteUrl } from "@/lib/site";
 // Evaluated at build time.
 const isStaticBuild = process.env.GITHUB_PAGES === "true";
 
-// GitHub Pages build: must be "force-static" (compatible with `output: export`).
-// Vercel production: "force-dynamic" — sitemap is always fresh (existing behaviour).
-export const dynamic = isStaticBuild ? "force-static" : "force-dynamic";
+// Must be a static string literal — Next.js parses route segment config via AST,
+// not runtime evaluation. "force-static" is valid for both output:export (GH Pages)
+// and Vercel (sitemap is generated at build time with DB access, refreshed each deploy).
+export const dynamic = "force-static";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
