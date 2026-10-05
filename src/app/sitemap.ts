@@ -3,7 +3,7 @@ import { prisma } from "@/lib/db/prisma";
 import { categories } from "@/lib/categories";
 import { siteUrl } from "@/lib/site";
 
-export const dynamic = "force-dynamic";
+export const dynamic = "force-static";
 
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const base = siteUrl();
