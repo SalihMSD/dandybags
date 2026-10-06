@@ -7,11 +7,21 @@ import {
   ShiprocketAuthError,
 } from "@/lib/shiprocket/errors";
 import type { ShiprocketShipmentDetail } from "@/lib/shiprocket/types";
-import type { ShipmentDiagnostics } from "@/lib/shiprocket/client";
+import type {
+  EndpointProbeResult,
+  ShipmentDiagnostics,
+} from "@/lib/shiprocket/client";
+import {
+  clearTokenCache,
+  configureToken,
+  probeShiprocketEndpoints,
+} from "@/lib/shiprocket/client";
 import {
   buildLookupResponse,
   handleShipmentLookup,
+  handleShipmentProbe,
   type LookupDeps,
+  type ProbeDeps,
 } from "@/lib/shiprocket/diagnostic";
 
 function makeDeps(overrides: Partial<LookupDeps> = {}): LookupDeps {
@@ -330,6 +340,7 @@ describe("shiprocket shipment diagnostic — route handler", () => {
         "awb_code",
         "courier_name",
         "_diagnostics",
+        "_probe",
       ]);
       const actualKeys = new Set(Object.keys(body));
       assert.deepEqual(actualKeys, expectedKeys, "Response should contain only expected fields + _diagnostics");
@@ -649,5 +660,311 @@ describe("shiprocket shipment diagnostic — route handler", () => {
       assert.equal(callCount, 1);
       assert.equal(receivedId, "test-ship-123");
     });
+  });
+});
+
+function mockShiprocketFetch(
+  impl: (url: string, init?: RequestInit) => Promise<Response>,
+): { restore: () => void } {
+  const originalFetch = globalThis.fetch;
+  globalThis.fetch = (async (url: string | URL | Request, init?: RequestInit) =>
+    impl(String(url), init)) as unknown as typeof fetch;
+  return {
+    restore: () => {
+      globalThis.fetch = originalFetch;
+    },
+  };
+}
+
+describe("shiprocket endpoint probe — probeShiprocketEndpoints (client)", () => {
+  it("P1: probes shipment and order-show endpoints and captures safe metadata", async () => {
+    configureToken("probe-token", Date.now() + 60 * 60_000);
+    const { restore } = mockShiprocketFetch(async (url, init) => {
+      const headers = (init?.headers ?? {}) as Record<string, string>;
+      assert.equal(headers.Authorization, "Bearer probe-token");
+      if (url.includes("/v1/external/shipments/")) {
+        return new Response("{}", {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        });
+      }
+      return new Response(JSON.stringify({ data: { id: 123 } }), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      });
+    });
+
+    try {
+      const probes = await probeShiprocketEndpoints("16047775753");
+
+      assert.equal(probes.length, 2);
+
+      assert.equal(probes[0].endpoint, "/v1/external/shipments/16047775753");
+      assert.equal(probes[0].upstream_status, 200);
+      assert.equal(probes[0].content_type, "application/json");
+      assert.equal(probes[0].body_length, 2);
+      assert.equal(probes[0].is_empty_object, true);
+      assert.deepEqual(probes[0].top_level_keys, []);
+      assert.equal(probes[0].message, null);
+      assert.equal(probes[0].error, null);
+
+      assert.equal(probes[1].endpoint, "/v1/external/orders/show/16047775753");
+      assert.equal(probes[1].upstream_status, 200);
+      assert.equal(probes[1].content_type, "application/json");
+      assert.equal(probes[1].is_empty_object, false);
+      assert.deepEqual(probes[1].top_level_keys, ["data"]);
+      assert.equal(probes[1].message, null);
+      assert.equal(probes[1].error, null);
+    } finally {
+      restore();
+      clearTokenCache();
+    }
+  });
+
+  it("P2: empty body is distinct from {} (length 0, not an empty object)", async () => {
+    configureToken("probe-token", Date.now() + 60 * 60_000);
+    const { restore } = mockShiprocketFetch(async () =>
+      new Response("", { status: 200 }),
+    );
+
+    try {
+      const probes = await probeShiprocketEndpoints("16047775753");
+
+      assert.equal(probes.length, 2);
+      for (const probe of probes) {
+        assert.equal(probe.upstream_status, 200);
+        assert.equal(probe.body_length, 0);
+        assert.equal(probe.is_empty_object, false);
+        assert.deepEqual(probe.top_level_keys, []);
+        assert.equal(probe.message, null);
+        assert.equal(probe.error, null);
+      }
+    } finally {
+      restore();
+      clearTokenCache();
+    }
+  });
+
+  it("P3: unparseable body is recorded as an error, not thrown", async () => {
+    configureToken("probe-token", Date.now() + 60 * 60_000);
+    const html = "<html>gateway</html>";
+    const { restore } = mockShiprocketFetch(async () =>
+      new Response(html, {
+        status: 200,
+        headers: { "content-type": "text/html" },
+      }),
+    );
+
+    try {
+      const probes = await probeShiprocketEndpoints("16047775753");
+
+      assert.equal(probes.length, 2);
+      for (const probe of probes) {
+        assert.equal(probe.upstream_status, 200);
+        assert.equal(probe.content_type, "text/html");
+        assert.equal(probe.body_length, html.length);
+        assert.equal(probe.is_empty_object, false);
+        assert.deepEqual(probe.top_level_keys, []);
+        assert.equal(probe.message, null);
+        assert.equal(probe.error, "response body is not valid JSON");
+      }
+    } finally {
+      restore();
+      clearTokenCache();
+    }
+  });
+
+  it("P4: redacts tokens, emails, and phone numbers in captured message", async () => {
+    configureToken("probe-token", Date.now() + 60 * 60_000);
+    const { restore } = mockShiprocketFetch(async () =>
+      new Response(
+        JSON.stringify({ message: "Bearer abc123def failed for user@example.com 9876543210" }),
+        {
+          status: 200,
+          headers: { "content-type": "application/json" },
+        },
+      ),
+    );
+
+    try {
+      const probes = await probeShiprocketEndpoints("16047775753");
+
+      assert.equal(
+        probes[0].message,
+        "Bearer [REDACTED] failed for [EMAIL] [PHONE]",
+      );
+      const serialized = JSON.stringify(probes);
+      assert.ok(!serialized.includes("abc123def"), "token must not leak");
+      assert.ok(!serialized.includes("user@example.com"), "email must not leak");
+      assert.ok(!serialized.includes("9876543210"), "phone must not leak");
+    } finally {
+      restore();
+      clearTokenCache();
+    }
+  });
+
+  it("P5: records non-2xx statuses (404/401) instead of throwing", async () => {
+    configureToken("probe-token", Date.now() + 60 * 60_000);
+    const { restore } = mockShiprocketFetch(async (url) => {
+      if (url.includes("/v1/external/shipments/")) {
+        return new Response("{}", { status: 404 });
+      }
+      return new Response("{}", { status: 401 });
+    });
+
+    try {
+      const probes = await probeShiprocketEndpoints("16047775753");
+
+      assert.equal(probes[0].upstream_status, 404);
+      assert.equal(probes[1].upstream_status, 401);
+    } finally {
+      restore();
+      clearTokenCache();
+    }
+  });
+
+  it("P6: network failures are captured safely without exposing the token", async () => {
+    configureToken("probe-token-secret", Date.now() + 60 * 60_000);
+    const { restore } = mockShiprocketFetch(async () => {
+      throw new Error("Bearer probe-token-secret network failure");
+    });
+
+    try {
+      const probes = await probeShiprocketEndpoints("16047775753");
+
+      assert.equal(probes.length, 2);
+      for (const probe of probes) {
+        assert.equal(probe.upstream_status, null);
+        assert.equal(probe.content_type, null);
+        assert.equal(probe.body_length, null);
+        assert.equal(probe.is_empty_object, false);
+        assert.deepEqual(probe.top_level_keys, []);
+        assert.equal(probe.message, null);
+        assert.ok(probe.error !== null);
+        assert.ok(probe.error.includes("[REDACTED]"));
+        assert.ok(!probe.error.includes("probe-token-secret"));
+      }
+    } finally {
+      restore();
+      clearTokenCache();
+    }
+  });
+});
+
+describe("shiprocket endpoint probe — handleShipmentProbe", () => {
+  function makeProbeDeps(overrides: Partial<ProbeDeps> = {}): ProbeDeps {
+    return {
+      requireAdmin: async () => ({ id: "admin1", role: "ADMIN" }),
+      originOk: () => true,
+      probeShiprocketEndpoints: async () => [
+        {
+          endpoint: "/v1/external/shipments/16047775753",
+          upstream_status: 200,
+          content_type: "application/json",
+          body_length: 2,
+          is_empty_object: true,
+          top_level_keys: [],
+          message: null,
+          error: null,
+        },
+        {
+          endpoint: "/v1/external/orders/show/16047775753",
+          upstream_status: 200,
+          content_type: "application/json",
+          body_length: 27,
+          is_empty_object: false,
+          top_level_keys: ["data"],
+          message: null,
+          error: null,
+        },
+      ],
+      ...overrides,
+    };
+  }
+
+  it("P7: requires admin authentication", async () => {
+    const deps = makeProbeDeps({
+      requireAdmin: async () => {
+        throw new Error("FORBIDDEN");
+      },
+    });
+
+    const res = await handleShipmentProbe(
+      new Request("https://dandyonline.in/test"),
+      "16047775753",
+      deps,
+    );
+
+    assert.equal(res.status, 403);
+    assert.equal((res.body as { error: string }).error, "Access denied.");
+  });
+
+  it("P8: rejects non-same-origin requests", async () => {
+    const deps = makeProbeDeps({ originOk: () => false });
+
+    const res = await handleShipmentProbe(
+      new Request("https://dandyonline.in/test"),
+      "16047775753",
+      deps,
+    );
+
+    assert.equal(res.status, 403);
+    assert.equal((res.body as { error: string }).error, "Invalid origin.");
+  });
+
+  it("P9: returns probe results for both endpoints with no-store", async () => {
+    const deps = makeProbeDeps();
+
+    const res = await handleShipmentProbe(
+      new Request("https://dandyonline.in/test"),
+      "16047775753",
+      deps,
+    );
+
+    assert.equal(res.status, 200);
+    assert.equal(res.headers["Cache-Control"], "no-store, max-age=0");
+    const body = res.body as { shipment_id: string; probes: EndpointProbeResult[] };
+    assert.equal(body.shipment_id, "16047775753");
+    assert.equal(body.probes.length, 2);
+    assert.equal(body.probes[0].endpoint, "/v1/external/shipments/16047775753");
+    assert.equal(body.probes[0].is_empty_object, true);
+    assert.equal(body.probes[0].body_length, 2);
+    assert.equal(body.probes[1].endpoint, "/v1/external/orders/show/16047775753");
+    assert.equal(body.probes[1].is_empty_object, false);
+  });
+
+  it("P10: probe response never includes the auth token or credentials", async () => {
+    const deps = makeProbeDeps();
+
+    const res = await handleShipmentProbe(
+      new Request("https://dandyonline.in/test"),
+      "16047775753",
+      deps,
+    );
+
+    assert.equal(res.status, 200);
+    const serialized = JSON.stringify(res.body);
+    assert.ok(!serialized.includes("Bearer"), "Bearer token must not leak");
+    assert.ok(!serialized.includes("authorization"), "auth header must not leak");
+    assert.ok(!serialized.includes("probe-token"), "token must not leak");
+  });
+
+  it("P11: probe errors are sanitized before being returned", async () => {
+    const deps = makeProbeDeps({
+      probeShiprocketEndpoints: async () => {
+        throw new Error("Bearer abc123def456 secret failure");
+      },
+    });
+
+    const res = await handleShipmentProbe(
+      new Request("https://dandyonline.in/test"),
+      "16047775753",
+      deps,
+    );
+
+    assert.equal(res.status, 502);
+    const body = res.body as { error: string };
+    assert.ok(!body.error.includes("abc123def456"), "token must not leak");
+    assert.ok(body.error.includes("[REDACTED]"), "token should be redacted");
   });
 });

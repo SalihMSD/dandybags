@@ -358,3 +358,82 @@ export async function fetchShipmentByIdWithDiagnostics(
     },
   };
 }
+
+export interface EndpointProbeResult {
+  endpoint: string;
+  upstream_status: number | null;
+  content_type: string | null;
+  body_length: number | null;
+  is_empty_object: boolean;
+  top_level_keys: string[];
+  message: string | null;
+  error: string | null;
+}
+
+export async function probeShiprocketEndpoints(
+  shipmentId: string,
+): Promise<EndpointProbeResult[]> {
+  const token = await getToken();
+  const endpoints = [
+    `/v1/external/shipments/${encodeURIComponent(shipmentId)}`,
+    `/v1/external/orders/show/${encodeURIComponent(shipmentId)}`,
+  ];
+
+  const probes: EndpointProbeResult[] = [];
+  for (const endpoint of endpoints) {
+    try {
+      const res = await fetchWithTimeout(`${apiBaseUrl()}${endpoint}`, {
+        method: "GET",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const raw = await res.text().catch(() => "");
+
+      let parsed: unknown = null;
+      let parseError: string | null = null;
+      if (raw.length > 0) {
+        try {
+          parsed = JSON.parse(raw);
+        } catch {
+          parseError = "response body is not valid JSON";
+        }
+      }
+
+      const obj =
+        parsed && typeof parsed === "object" && !Array.isArray(parsed)
+          ? (parsed as Record<string, unknown>)
+          : null;
+
+      let message: string | null = null;
+      if (obj && typeof obj.message === "string") {
+        message = normalizeShiprocketError(obj.message);
+      }
+
+      probes.push({
+        endpoint,
+        upstream_status: res.status,
+        content_type: res.headers.get("content-type"),
+        body_length: raw.length,
+        is_empty_object: obj !== null && Object.keys(obj).length === 0,
+        top_level_keys: obj ? Object.keys(obj) : [],
+        message,
+        error: parseError,
+      });
+    } catch (err) {
+      probes.push({
+        endpoint,
+        upstream_status: null,
+        content_type: null,
+        body_length: null,
+        is_empty_object: false,
+        top_level_keys: [],
+        message: null,
+        error:
+          err instanceof Error
+            ? normalizeShiprocketError(err.message)
+            : "unknown probe error",
+      });
+    }
+  }
+  return probes;
+}

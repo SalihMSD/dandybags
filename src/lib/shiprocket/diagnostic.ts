@@ -1,7 +1,13 @@
 import { originOk } from "@/lib/auth/helpers";
 import { requireAdmin } from "@/lib/auth/session";
-import { fetchShipmentByIdWithDiagnostics } from "@/lib/shiprocket/client";
-import type { ShipmentDiagnostics } from "@/lib/shiprocket/client";
+import {
+  fetchShipmentByIdWithDiagnostics,
+  probeShiprocketEndpoints,
+} from "@/lib/shiprocket/client";
+import type {
+  EndpointProbeResult,
+  ShipmentDiagnostics,
+} from "@/lib/shiprocket/client";
 import type { ShiprocketShipmentDetail } from "@/lib/shiprocket/types";
 import {
   ShiprocketError,
@@ -17,6 +23,7 @@ export interface LookupResponse {
   awb_code: string | null;
   courier_name: string | null;
   _diagnostics?: ShipmentDiagnostics;
+  _probe?: EndpointProbeResult[];
 }
 
 export function buildLookupResponse(data: ShiprocketShipmentDetail): LookupResponse {
@@ -77,9 +84,74 @@ export async function handleShipmentLookup(
     const { data, diagnostics } = await deps.fetchShipmentByIdWithDiagnostics(shipmentId);
     const response = buildLookupResponse(data);
 
+    let probes: EndpointProbeResult[] = [];
+    try {
+      probes = await probeShiprocketEndpoints(shipmentId);
+    } catch {
+      // Probe failure must not break the lookup response
+    }
+
     return {
       status: 200,
-      body: { ...response, _diagnostics: diagnostics },
+      body: { ...response, _diagnostics: diagnostics, _probe: probes },
+      headers: { "Cache-Control": "no-store, max-age=0" },
+    };
+  } catch (err) {
+    if (err instanceof ShiprocketNotFoundError) {
+      return { status: 404, body: { error: "Shiprocket shipment not found." }, headers: {} };
+    }
+    if (err instanceof ShiprocketError) {
+      const status = err.statusCode ?? 502;
+      return {
+        status: status >= 500 ? 502 : status,
+        body: { error: "Shiprocket API error." },
+        headers: {},
+      };
+    }
+    const message =
+      err instanceof Error ? normalizeShiprocketError(err.message) : "Something went wrong.";
+    return { status: 502, body: { error: message }, headers: {} };
+  }
+}
+
+export interface ShipmentProbeResponse {
+  shipment_id: string;
+  probes: EndpointProbeResult[];
+}
+
+export interface ProbeDeps {
+  requireAdmin: () => Promise<unknown>;
+  originOk: (request: Request) => boolean;
+  probeShiprocketEndpoints: (shipmentId: string) => Promise<EndpointProbeResult[]>;
+}
+
+export const defaultProbeDeps: ProbeDeps = {
+  requireAdmin,
+  originOk,
+  probeShiprocketEndpoints,
+};
+
+export async function handleShipmentProbe(
+  request: Request,
+  shipmentId: string,
+  deps: ProbeDeps = defaultProbeDeps,
+): Promise<LookupResult> {
+  if (!deps.originOk(request)) {
+    return { status: 403, body: { error: "Invalid origin." }, headers: {} };
+  }
+
+  try {
+    await deps.requireAdmin();
+  } catch {
+    return { status: 403, body: { error: "Access denied." }, headers: {} };
+  }
+
+  try {
+    const probes = await deps.probeShiprocketEndpoints(shipmentId);
+
+    return {
+      status: 200,
+      body: { shipment_id: shipmentId, probes },
       headers: { "Cache-Control": "no-store, max-age=0" },
     };
   } catch (err) {
