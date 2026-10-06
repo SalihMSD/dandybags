@@ -29,6 +29,8 @@ jobs:
         run: |
           rm -rf src/app/api
           rm -f src/middleware.ts
+          rm -rf "src/app/shop/[slug]"
+          cp src/lib/fonts.static.ts src/lib/fonts.ts
       - run: npm run build
         env:
           CI: "true"

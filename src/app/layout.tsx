@@ -1,24 +1,9 @@
 import type { Metadata, Viewport } from "next";
-import { Cormorant_Garamond, Outfit } from "next/font/google";
 import { AuthProvider } from "@/components/AuthProvider";
 import { StorefrontShell } from "@/components/StorefrontShell";
 import { site, siteUrl } from "@/lib/site";
+import { serifVariable, sans } from "@/lib/fonts";
 import "./globals.css";
-
-const serif = Cormorant_Garamond({
-  subsets: ["latin"],
-  weight: ["400", "600", "700"],
-  style: ["normal", "italic"],
-  variable: "--font-cormorant",
-  display: "swap",
-});
-
-const sans = Outfit({
-  subsets: ["latin"],
-  weight: ["400", "500", "600"],
-  variable: "--font-outfit",
-  display: "swap",
-});
 
 export const viewport: Viewport = {
   width: "device-width",
@@ -84,7 +69,7 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body className={`${serif.variable} ${sans.variable} font-sans antialiased`}>
+      <body className={`${serifVariable} ${sans.variable} font-sans antialiased`.trim()}>
         <AuthProvider>
           <StorefrontShell>{children}</StorefrontShell>
         </AuthProvider>
