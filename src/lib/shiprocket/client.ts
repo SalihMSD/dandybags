@@ -437,3 +437,103 @@ export async function probeShiprocketEndpoints(
   }
   return probes;
 }
+
+export interface OrderProbeResult {
+  upstream_status: number | null;
+  content_type: string | null;
+  body_length: number | null;
+  top_level_keys: string[];
+  data_length: number | null;
+  records: Array<{
+    order_id: number | string | null;
+    shipment_id: string | number | null;
+    channel_order_id: string | null;
+    status: string | null;
+    awb: string | null;
+  }>;
+  error: string | null;
+}
+
+export async function probeOrderLookup(
+  merchantOrderId: string,
+): Promise<OrderProbeResult> {
+  const token = await getToken();
+  const url = new URL(`${apiBaseUrl()}/v1/external/orders`);
+  url.searchParams.set("filter_by", "channel_order_id");
+  url.searchParams.set("filter", merchantOrderId);
+
+  try {
+    const res = await fetchWithTimeout(url.toString(), {
+      method: "GET",
+      headers: { Authorization: `Bearer ${token}` },
+    });
+
+    const raw = await res.text().catch(() => "");
+
+    let parsed: unknown = null;
+    let parseError: string | null = null;
+    if (raw.length > 0) {
+      try {
+        parsed = JSON.parse(raw);
+      } catch {
+        parseError = "response body is not valid JSON";
+      }
+    }
+
+    const obj =
+      parsed && typeof parsed === "object" && !Array.isArray(parsed)
+        ? (parsed as Record<string, unknown>)
+        : null;
+
+    const dataArray =
+      obj && Array.isArray(obj.data)
+        ? (obj.data as Array<Record<string, unknown>>)
+        : null;
+    const records = dataArray
+      ? dataArray.slice(0, 10).map((item) => {
+          const shipment =
+            item.shipment && typeof item.shipment === "object"
+              ? (item.shipment as Record<string, unknown>)
+              : null;
+          return {
+            order_id: (item.order_id ?? null) as string | number | null,
+            shipment_id: (item.shipment_id ?? shipment?.id ?? null) as
+              | string
+              | number
+              | null,
+            channel_order_id: (item.channel_order_id ?? null) as string | null,
+            status: (item.status ?? null) as string | null,
+            awb: (item.awb_code ?? shipment?.awb ?? null) as string | null,
+          };
+        })
+      : [];
+
+    let message: string | null = null;
+    if (obj && typeof obj.message === "string") {
+      message = normalizeShiprocketError(obj.message);
+    }
+
+    return {
+      upstream_status: res.status,
+      content_type: res.headers.get("content-type"),
+      body_length: raw.length,
+      top_level_keys: obj ? Object.keys(obj) : [],
+      data_length: dataArray ? dataArray.length : null,
+      records,
+      error: parseError ?? message,
+    };
+  } catch (err) {
+    return {
+      upstream_status: null,
+      content_type: null,
+      body_length: null,
+      top_level_keys: [],
+      data_length: null,
+      records: [],
+      error:
+        err instanceof Error
+          ? normalizeShiprocketError(err.message)
+          : "unknown probe error",
+    };
+  }
+}
