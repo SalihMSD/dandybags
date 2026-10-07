@@ -337,6 +337,7 @@ function makeDeps(db: any, overrides: Partial<{
       process.env.SHIPROCKET_EMAIL && process.env.SHIPROCKET_PASSWORD && process.env.SHIPROCKET_PICKUP_LOCATION
     ),
     createOrder: () => Promise.resolve({
+      order_id: "sr_order_1",
       shipment_id: "sr_shipment_1",
       awb_code: "12345678901",
       order_status: "ORDER_CREATED",
@@ -585,6 +586,7 @@ describe("createShipmentForOrder — duplicate prevention and idempotency", () =
     });
 
     (setup.deps as any).createOrder = () => Promise.resolve({
+      order_id: "sr_order_1",
       shipment_id: "sr_shipment_1",
       awb_code: null,
       order_status: "ORDER_CREATED",
@@ -596,7 +598,8 @@ describe("createShipmentForOrder — duplicate prevention and idempotency", () =
 
     if (result.ok) {
       assert.equal(result.action, "reconciled");
-      assert.equal(result.shipment.providerOrderId, "sr_shipment_1");
+      assert.equal(result.shipment.providerOrderId, "sr_order_1");
+      assert.equal(result.shipment.providerShipmentId, "sr_shipment_1");
       assert.equal(result.shipment.awb, "12345678901");
       assert.equal(result.shipment.courierName, "DTDC");
     } else {
@@ -719,7 +722,7 @@ describe("createShipmentForOrder — retry from FAILED", () => {
 
     if (result.ok) {
       assert.equal(result.action, "reconciled");
-      assert.equal(result.shipment.providerOrderId, "sr_shipment_1");
+      assert.equal(result.shipment.providerOrderId, "sr_order_1");
       assert.equal(result.shipment.awb, "12345678901");
     } else {
       assert.fail(`Expected success but got: ${result.error}`);
@@ -822,6 +825,7 @@ describe("createShipmentForOrder — timeout handling (BLOCKER 1)", () => {
   it("T21: AWB assignment timeout after successful createOrder preserves providerOrderId", async () => {
     const setup = setupValidMocks();
     (setup.deps as any).createOrder = () => Promise.resolve({
+      order_id: "sr_order_1",
       shipment_id: "sr_shipment_1",
       awb_code: null,
       order_status: "ORDER_CREATED",
@@ -836,7 +840,7 @@ describe("createShipmentForOrder — timeout handling (BLOCKER 1)", () => {
     if (!result.ok) {
       assert.equal(result.code, "SHIPROCKET_TIMEOUT");
       assert.equal(result.statusCode, 504);
-      assert.ok(result.error.includes("sr_shipment_1"), "Error should mention the existing Shiprocket order ID");
+      assert.ok(result.error.includes("sr_order_1"), "Error should mention the existing Shiprocket order ID");
     } else {
       assert.fail("Expected failure due to AWB timeout");
     }
@@ -850,28 +854,48 @@ describe("createShipmentForOrder — resume from existing state (BLOCKER 2)", ()
       id: "ship_created",
       status: "CREATED",
       providerOrderId: "sr_existing_123",
+      providerShipmentId: "sr_existing_shipment_123",
       awb: null,
     });
 
     let createOrderCalled = false;
+    let assignAwbArg: string | undefined;
+    let pickupArg: string[] | undefined;
     (setup.deps as any).createOrder = () => {
       createOrderCalled = true;
       return Promise.resolve({
+        order_id: "sr_order_1",
         shipment_id: "sr_shipment_1",
         awb_code: null,
         order_status: "ORDER_CREATED",
         message: "Order created successfully",
       });
     };
+    (setup.deps as any).assignAWB = (id: string) => {
+      assignAwbArg = id;
+      return Promise.resolve({
+        status_code: 200,
+        status: true,
+        message: "AWB assigned",
+        data: { shipment_id: id, awb_code: "12345678901", courier_company: "DTDC" },
+      });
+    };
+    (setup.deps as any).schedulePickup = (ids: string[]) => {
+      pickupArg = ids;
+      return Promise.resolve({ status_code: 200, status: true, message: "Pickup scheduled" });
+    };
 
     const { createShipmentForOrder } = await import("@/lib/shipping/create-shipment");
     const result = await createShipmentForOrder("DND-TEST01", setup.deps);
 
     assert.equal(createOrderCalled, false, "createOrder should NOT be called when providerOrderId already exists");
+    assert.equal(assignAwbArg, "sr_existing_shipment_123", "assignAWB should receive the shipment_id");
+    assert.deepEqual(pickupArg, ["sr_existing_123"], "schedulePickup should receive the order_id");
 
     if (result.ok) {
       assert.equal(result.action, "reconciled");
       assert.equal(result.shipment.providerOrderId, "sr_existing_123");
+      assert.equal(result.shipment.providerShipmentId, "sr_existing_shipment_123");
       assert.equal(result.shipment.status, "PICKUP_SCHEDULED");
     } else {
       assert.fail(`Expected success but got: ${result.error}`);
@@ -1016,16 +1040,42 @@ describe("createShipmentForOrder — advisory lock (BLOCKER 3)", () => {
 });
 
 describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () => {
-  it("T28: normal successful creation completes and persists providerOrderId", async () => {
+  it("T28: normal successful creation persists order_id and shipment_id separately", async () => {
     const setup = setupValidMocks();
     let createOrderCount = 0;
+    let assignAwbArg: string | undefined;
+    let pickupArg: string[] | undefined;
+    let labelArg: string | undefined;
     (setup.deps as any).createOrder = () => {
       createOrderCount++;
       return Promise.resolve({
+        order_id: "sr_order_created",
         shipment_id: "sr_shipment_created",
         awb_code: null,
         order_status: "ORDER_CREATED",
         message: "Order created successfully",
+      });
+    };
+    (setup.deps as any).assignAWB = (id: string) => {
+      assignAwbArg = id;
+      return Promise.resolve({
+        status_code: 200,
+        status: true,
+        message: "AWB assigned",
+        data: { shipment_id: id, awb_code: "12345678901", courier_company: "DTDC" },
+      });
+    };
+    (setup.deps as any).schedulePickup = (ids: string[]) => {
+      pickupArg = ids;
+      return Promise.resolve({ status_code: 200, status: true, message: "Pickup scheduled" });
+    };
+    (setup.deps as any).generateLabel = (id: string) => {
+      labelArg = id;
+      return Promise.resolve({
+        status_code: 200,
+        status: true,
+        message: "Label generated",
+        data: { url: "https://label.shiprocket.in/label/123" },
       });
     };
 
@@ -1035,9 +1085,13 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
     if (!result.ok) {
       assert.fail(`Expected success but got: ${result.error}`);
     } else {
-      assert.equal(result.shipment.providerOrderId, "sr_shipment_created");
+      assert.equal(result.shipment.providerOrderId, "sr_order_created");
+      assert.equal(result.shipment.providerShipmentId, "sr_shipment_created");
       assert.equal(createOrderCount, 1, "createOrder should be called exactly once");
       assert.equal(result.action, "created");
+      assert.equal(assignAwbArg, "sr_shipment_created", "assignAWB should receive the shipment_id");
+      assert.deepEqual(pickupArg, ["sr_order_created"], "schedulePickup should receive the order_id");
+      assert.equal(labelArg, "sr_order_created", "generateLabel should receive the order_id");
     }
   });
 
@@ -1112,7 +1166,8 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
     (setup.deps as any).createOrder = () => {
       createOrderCount++;
       return Promise.resolve({
-        shipment_id: "sr_should_not_be_called",
+        order_id: "sr_should_not_be_called",
+        shipment_id: "sr_should_not_be_called_shipment",
         awb_code: null,
         order_status: "ORDER_CREATED",
         message: "Order created successfully",
@@ -1122,6 +1177,7 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
     (setup.deps as any).reconcileShirocketOrder = (orderId: string) =>
       Promise.resolve({
         providerOrderId: "sr_existing_from_shiprocket",
+        providerShipmentId: "sr_existing_shipment_from_shiprocket",
         awb: "12345678901",
         courierName: "DTDC",
         status: "NEW",
@@ -1136,6 +1192,7 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
     } else {
       assert.equal(result.action, "reconciled");
       assert.equal(result.shipment.providerOrderId, "sr_existing_from_shiprocket");
+      assert.equal(result.shipment.providerShipmentId, "sr_existing_shipment_from_shiprocket");
       assert.equal(result.shipment.status, "PICKUP_SCHEDULED");
     }
   });
@@ -1158,7 +1215,8 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
     (setup.deps as any).createOrder = () => {
       createOrderCount++;
       return Promise.resolve({
-        shipment_id: "sr_newly_created",
+        order_id: "sr_order_newly_created",
+        shipment_id: "sr_shipment_newly_created",
         awb_code: null,
         order_status: "ORDER_CREATED",
         message: "Order created successfully",
@@ -1178,7 +1236,8 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
     if (!result.ok) {
       assert.fail(`Expected success but got: ${result.error}`);
     } else {
-      assert.equal(result.shipment.providerOrderId, "sr_newly_created");
+      assert.equal(result.shipment.providerOrderId, "sr_order_newly_created");
+      assert.equal(result.shipment.providerShipmentId, "sr_shipment_newly_created");
     }
   });
 
@@ -1205,7 +1264,6 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
       createOrderCount++;
       return Promise.reject(new ShiprocketTimeoutError("Request timed out"));
     };
-
     const { createShipmentForOrder } = await import("@/lib/shipping/create-shipment");
 
     // First retry: reconcile → no order → createOrder → timeout → RECONCILIATION_REQUIRED
@@ -1239,7 +1297,8 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
       // Simulate a delay to increase likelihood of concurrency
       return new Promise((resolve) =>
         setTimeout(() => resolve({
-          shipment_id: "sr_concurrent_1",
+          order_id: "sr_order_concurrent_1",
+          shipment_id: "sr_shipment_concurrent_1",
           awb_code: null,
           order_status: "ORDER_CREATED",
           message: "Order created successfully",
@@ -1280,11 +1339,11 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
 
     (setup.deps as any).createOrder = () => {
       createOrderCount++;
-      return Promise.resolve({ shipment_id: "sr_new", awb_code: null, order_status: "ORDER_CREATED", message: "ok" });
+      return Promise.resolve({ order_id: "sr_order_new", shipment_id: "sr_shipment_new", awb_code: null, order_status: "ORDER_CREATED", message: "ok" });
     };
     (setup.deps as any).reconcileShirocketOrder = () => {
       reconcileCount++;
-      return Promise.resolve({ providerOrderId: "sr_already_exists", awb: null, courierName: null, status: "NEW" });
+      return Promise.resolve({ providerOrderId: "sr_already_exists", providerShipmentId: "sr_shipment_already_exists", awb: null, courierName: null, status: "NEW" });
     };
 
     const { createShipmentForOrder } = await import("@/lib/shipping/create-shipment");
@@ -1296,6 +1355,160 @@ describe("createShipmentForOrder — reconciliation workflow (BLOCKER 2)", () =>
       assert.fail(`Expected success but got: ${result.error}`);
     } else {
       assert.equal(result.shipment.providerOrderId, "sr_already_exists");
+    }
+  });
+});
+
+describe("createShipmentForOrder — createOrder response ID validation", () => {
+  it("N1: rejects createOrder response missing order_id and marks shipment FAILED", async () => {
+    const setup = setupValidMocks();
+    (setup.deps as any).createOrder = () =>
+      Promise.resolve({
+        shipment_id: "sr_shipment_1",
+        awb_code: null,
+        order_status: "ORDER_CREATED",
+        message: "Order created successfully",
+      });
+
+    const { createShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await createShipmentForOrder("DND-TEST01", setup.deps);
+
+    if (!result.ok) {
+      assert.equal(result.code, "SHIPROCKET_API_ERROR");
+      assert.equal(result.statusCode, 502);
+      assert.ok(result.error.includes("order_id"), "Error should mention order_id");
+    } else {
+      assert.fail("Expected failure due to missing order_id");
+    }
+
+    const existing = await setup.deps.prisma.shipment.findFirst({
+      where: { orderId: "DND-TEST01" },
+    });
+    assert.equal(existing.status, "FAILED", "Shipment should be marked FAILED when order_id is missing");
+  });
+
+  it("N2: rejects createOrder response missing shipment_id and marks shipment FAILED", async () => {
+    const setup = setupValidMocks();
+    (setup.deps as any).createOrder = () =>
+      Promise.resolve({
+        order_id: "sr_order_1",
+        awb_code: null,
+        order_status: "ORDER_CREATED",
+        message: "Order created successfully",
+      });
+
+    const { createShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await createShipmentForOrder("DND-TEST01", setup.deps);
+
+    if (!result.ok) {
+      assert.equal(result.code, "SHIPROCKET_API_ERROR");
+      assert.equal(result.statusCode, 502);
+      assert.ok(result.error.includes("shipment_id"), "Error should mention shipment_id");
+    } else {
+      assert.fail("Expected failure due to missing shipment_id");
+    }
+
+    const existing = await setup.deps.prisma.shipment.findFirst({
+      where: { orderId: "DND-TEST01" },
+    });
+    assert.equal(existing.status, "FAILED", "Shipment should be marked FAILED when shipment_id is missing");
+  });
+
+  it("N3: converts numeric order_id and shipment_id to String before persisting", async () => {
+    const setup = setupValidMocks();
+    (setup.deps as any).createOrder = () =>
+      Promise.resolve({
+        order_id: 987654321,
+        shipment_id: 16047775753,
+        awb_code: null,
+        order_status: "ORDER_CREATED",
+        message: "Order created successfully",
+      });
+
+    const { createShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await createShipmentForOrder("DND-TEST01", setup.deps);
+
+    if (result.ok) {
+      assert.equal(result.shipment.providerOrderId, "987654321");
+      assert.equal(result.shipment.providerShipmentId, "16047775753");
+      assert.equal(typeof result.shipment.providerOrderId, "string");
+      assert.equal(typeof result.shipment.providerShipmentId, "string");
+    } else {
+      assert.fail(`Expected success but got: ${result.error}`);
+    }
+  });
+});
+
+describe("createShipmentForOrder — remote success / local persistence failure recovery", () => {
+  it("N4: reconciliation recovers a RECONCILIATION_REQUIRED shipment using BOTH distinct order_id and shipment_id", async () => {
+    const setup = setupValidMocks();
+    // Simulate: createOrder succeeded remotely but the local persist failed
+    // (or the result was lost), leaving the shipment in RECONCILIATION_REQUIRED
+    // with no providerOrderId.
+    setup.setShipmentByOrderId("DND-TEST01", {
+      id: "ship_unpersisted",
+      status: "RECONCILIATION_REQUIRED",
+      providerOrderId: null,
+      providerShipmentId: null,
+      awb: null,
+      failureReason: "Shiprocket API timed out",
+    });
+
+    let createOrderCount = 0;
+    let assignAwbArg: string | undefined;
+    let pickupArg: string[] | undefined;
+    (setup.deps as any).createOrder = () => {
+      createOrderCount++;
+      return Promise.resolve({
+        order_id: "sr_order_recovered",
+        shipment_id: "sr_shipment_recovered",
+        awb_code: null,
+        order_status: "ORDER_CREATED",
+        message: "Order created successfully",
+      });
+    };
+    // Reconciliation finds the order that WAS created remotely, with distinct IDs.
+    // AWB is not yet assigned on Shiprocket, so the resume path must call
+    // assignAWB with the shipment_id.
+    (setup.deps as any).reconcileShirocketOrder = () =>
+      Promise.resolve({
+        providerOrderId: "sr_order_recovered",
+        providerShipmentId: "sr_shipment_recovered",
+        awb: null,
+        courierName: null,
+        status: "ORDER_CREATED",
+      });
+    (setup.deps as any).assignAWB = (id: string) => {
+      assignAwbArg = id;
+      return Promise.resolve({
+        status_code: 200,
+        status: true,
+        message: "AWB assigned",
+        data: { shipment_id: id, awb_code: "12345678901", courier_company: "DTDC" },
+      });
+    };
+    (setup.deps as any).schedulePickup = (ids: string[]) => {
+      pickupArg = ids;
+      return Promise.resolve({ status_code: 200, status: true, message: "Pickup scheduled" });
+    };
+
+    const { createShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await createShipmentForOrder("DND-TEST01", setup.deps);
+
+    // The remote order is found via reconciliation, so createOrder must NOT run again
+    assert.equal(createOrderCount, 0, "createOrder must NOT be called again — the remote order already exists");
+    // assignAWB must use the shipment_id, not the order_id
+    assert.equal(assignAwbArg, "sr_shipment_recovered", "assignAWB should receive the shipment_id");
+    // schedulePickup must use the order_id, not the shipment_id
+    assert.deepEqual(pickupArg, ["sr_order_recovered"], "schedulePickup should receive the order_id");
+
+    if (result.ok) {
+      assert.equal(result.action, "reconciled");
+      assert.equal(result.shipment.providerOrderId, "sr_order_recovered");
+      assert.equal(result.shipment.providerShipmentId, "sr_shipment_recovered");
+      assert.equal(result.shipment.status, "PICKUP_SCHEDULED");
+    } else {
+      assert.fail(`Expected success but got: ${result.error}`);
     }
   });
 });

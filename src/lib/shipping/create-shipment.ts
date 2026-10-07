@@ -510,9 +510,20 @@ async function createShipmentForOrderInner(
     };
   }
 
-  const providerOrderId = String(createRes.shipment_id);
+  const providerOrderId = String(createRes.order_id);
+  const providerShipmentId = String(createRes.shipment_id);
 
-  if (!providerOrderId || providerOrderId === "undefined" || providerOrderId === "null" || providerOrderId === "NaN") {
+  if (!isValidProviderId(providerOrderId)) {
+    await markShipmentFailed(db, shipmentId, "Shiprocket createOrder returned an invalid order_id");
+    return {
+      ok: false,
+      error: "Shiprocket createOrder returned an invalid order_id.",
+      code: "SHIPROCKET_API_ERROR",
+      statusCode: 502,
+    };
+  }
+
+  if (!isValidProviderId(providerShipmentId)) {
     await markShipmentFailed(db, shipmentId, "Shiprocket createOrder returned an invalid shipment_id");
     return {
       ok: false,
@@ -522,14 +533,14 @@ async function createShipmentForOrderInner(
     };
   }
 
-  // Step 8b: Immediately persist providerOrderId so retries can resume from here.
+  // Step 8b: Immediately persist both IDs so retries can resume from here.
   // This is the critical fix: if the process crashes after createOrder succeeds,
   // a retry will find providerOrderId already set and skip re-calling createOrder.
   await db.shipment.update({
     where: { id: shipmentId },
     data: {
       providerOrderId,
-      providerShipmentId: providerOrderId,
+      providerShipmentId,
       status: "CREATED",
     },
   });
@@ -551,7 +562,7 @@ async function createShipmentForOrderInner(
   // Step 10: Assign AWB if not returned by createOrder
   if (!awbCode) {
     try {
-      const assignRes: ShiprocketAssignAwbResponse = await deps.assignAWB(providerOrderId);
+      const assignRes: ShiprocketAssignAwbResponse = await deps.assignAWB(providerShipmentId);
       if (assignRes.data) {
         awbCode = assignRes.data.awb_code;
         courierName = assignRes.data.courier_company || null;
@@ -560,7 +571,7 @@ async function createShipmentForOrderInner(
       if (err instanceof ShiprocketError && err.statusCode === 408) {
         await db.shipment.update({
           where: { id: shipmentId },
-          data: { status: "CREATED", providerOrderId, providerShipmentId: providerOrderId },
+          data: { status: "CREATED", providerOrderId, providerShipmentId },
         });
         return {
           ok: false,
@@ -647,7 +658,7 @@ async function createShipmentForOrderInner(
     where: { id: shipmentId },
     data: {
       providerOrderId,
-      providerShipmentId: providerOrderId,
+      providerShipmentId,
       awb: awbCode,
       courierName,
       status: pickupScheduledAt ? "PICKUP_SCHEDULED" : "AWB_ASSIGNED",
@@ -688,14 +699,19 @@ function canResumeFromProviderOrder(status: string): boolean {
 
 async function resumeFromExistingShipment(
   orderId: string,
-  existing: { id: string; status: string; providerOrderId: string | null; awb: string | null; pickupScheduledAt: Date | null },
+  existing: { id: string; status: string; providerOrderId: string | null; providerShipmentId: string | null; awb: string | null; pickupScheduledAt: Date | null },
   deps: ShipmentDeps,
 ): Promise<CreateShipmentResult> {
   const { prisma: db } = deps;
   const providerOrderId = existing.providerOrderId;
+  const providerShipmentId = existing.providerShipmentId;
   if (!providerOrderId) {
     throw new ShiprocketError("resume called without providerOrderId", 500);
   }
+  // assignAWB requires a Shiprocket shipment_id. providerShipmentId holds it
+  // for current records; fall back to providerOrderId only for legacy records
+  // created before the two IDs were tracked separately.
+  const awbShipmentId = providerShipmentId ?? providerOrderId;
 
   let awbCode = existing.awb;
   let courierName: string | null = null;
@@ -703,7 +719,7 @@ async function resumeFromExistingShipment(
   // Step A: If no AWB assigned, try to assign one
   if (!awbCode) {
     try {
-      const assignRes: ShiprocketAssignAwbResponse = await deps.assignAWB(providerOrderId);
+      const assignRes: ShiprocketAssignAwbResponse = await deps.assignAWB(awbShipmentId);
       if (assignRes.data) {
         awbCode = assignRes.data.awb_code;
         courierName = assignRes.data.courier_company || null;
@@ -785,7 +801,7 @@ async function resumeFromExistingShipment(
     where: { id: existing.id },
     data: {
       providerOrderId,
-      providerShipmentId: providerOrderId,
+      providerShipmentId: providerShipmentId ?? providerOrderId,
       awb: awbCode,
       courierName,
       status: pickupScheduledAt ? "PICKUP_SCHEDULED" : "AWB_ASSIGNED",

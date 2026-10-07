@@ -239,15 +239,15 @@ export async function findOrderByMerchantId(merchantOrderId: string): Promise<Sh
     { method: "GET" },
   );
 
-   if (data?.data?.length > 0) {
+  if (data?.data?.length > 0) {
     const order = data.data[0];
+    const orderId = order.order_id;
     const shipmentId = order.shipment_id ?? order.shipment?.id;
-    if (shipmentId) {
-      const providerOrderId = String(shipmentId);
+    if (orderId != null && shipmentId != null) {
       return {
-        providerOrderId,
-        providerShipmentId: providerOrderId,
-        orderId: order.order_id ? String(order.order_id) : null,
+        providerOrderId: String(orderId),
+        providerShipmentId: String(shipmentId),
+        orderId: String(orderId),
         awb: order.awb_code ?? order.shipment?.awb ?? null,
         courierName: order.courier_name ?? order.shipment?.courier ?? null,
         status: order.status ?? null,

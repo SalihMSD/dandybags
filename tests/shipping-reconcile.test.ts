@@ -978,4 +978,46 @@ describe("reconcileShipmentForOrder — missing local Shipment recovery", () => 
     assert.equal(result.action, "recovered");
     assert.equal(result.shipment.providerShipmentId, "16047775753", "providerShipmentId should fall back to providerOrderId");
   });
+
+  it("R23: distinct providerOrderId (order_id) and providerShipmentId (shipment_id) are persisted separately", async () => {
+    const ctx = createMockDb();
+    ctx.setShipment({ ...PENDING_SHIPMENT });
+    ctx.setOrder("DND-TEST01", { id: "DND-TEST01", paymentStatus: "PAID", orderStatus: "PLACED", items: [] });
+
+    const deps = makeBaseDeps(ctx.db);
+    let createOrderCalled = false;
+    deps.createOrder = () => {
+      createOrderCalled = true;
+      return Promise.resolve({} as any);
+    };
+    // The remote lookup returns a distinct Shiprocket order_id and shipment_id.
+    deps.reconcileShirocketOrder = () =>
+      Promise.resolve(
+        makeLookupResult({
+          providerOrderId: "sr_order_distinct_111",
+          providerShipmentId: "sr_shipment_distinct_222",
+        }),
+      );
+
+    const { reconcileShipmentForOrder } = await import("@/lib/shipping/create-shipment");
+    const result = await reconcileShipmentForOrder("DND-TEST01", deps);
+
+    assert.equal(createOrderCalled, false, "createOrder must NOT be called during reconciliation");
+    if (!result.ok) {
+      assert.fail(`Expected success but got: ${result.error}`);
+    } else if (result.action !== "reconciled") {
+      assert.fail(`Expected reconciled action, got ${result.action}`);
+    } else {
+      assert.equal(result.shipment.providerOrderId, "sr_order_distinct_111");
+      assert.equal(result.shipment.providerShipmentId, "sr_shipment_distinct_222");
+    }
+
+    const updates = ctx.getCalls("shipment", "update");
+    const persistedCall = findUpdateWithProvider(updates);
+    assert.ok(persistedCall, "Should have persisted provider IDs");
+    const data = (persistedCall!.args[0] as any).data;
+    assert.equal(data.providerOrderId, "sr_order_distinct_111");
+    assert.equal(data.providerShipmentId, "sr_shipment_distinct_222");
+    assert.notEqual(data.providerOrderId, data.providerShipmentId, "order_id and shipment_id must be distinct");
+  });
 });
